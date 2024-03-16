@@ -1,6 +1,8 @@
 use std::ops::{BitAnd, BitOr, BitXor, BitAndAssign, BitOrAssign, BitXorAssign, Not};
 use std::fmt;
 
+/// wrapper struct around u64 to represent
+/// bitboard
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Bitboard(pub u64);
 
@@ -83,7 +85,7 @@ impl Bitboard{
         *self == Self::UNUSED
     }
 
-    // debruijn multiplication, yay!
+    /// finds index of lsb with debruijn multiplication
     pub fn bitscanforward(&self) -> usize{
         assert!(!self.is_empty());
         Self::MAGIC_TABLE[((self.0 & self.0.wrapping_neg()).wrapping_mul(Self::MAGIC)).wrapping_shr(58) as usize]

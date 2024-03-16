@@ -1,4 +1,8 @@
 mod bitboard;
 mod tables;
+mod square;
 
-pub(crate) use bitboard::Bitboard;
+pub use bitboard::Bitboard;
+pub use square::Square;
+
+pub use tables::*;

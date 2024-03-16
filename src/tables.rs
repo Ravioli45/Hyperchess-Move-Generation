@@ -1,4 +1,16 @@
-const fn const_min(a: u8, b: u8) -> u8{
+#![allow(non_upper_case_globals)]
+
+use crate::{Bitboard, Square};
+
+pub const fn magic_index(blockers: Bitboard, magic: u64, throwaway: u8) -> usize{
+    let hash = blockers.0.wrapping_mul(magic);
+    let index = (hash >> throwaway) as usize;
+    index
+}
+
+// only defined so it can be used in 
+// initialize num_to_edge
+const fn const_min(a: i8, b: i8) -> i8{
     if a > b{
         b
     }
@@ -7,9 +19,9 @@ const fn const_min(a: u8, b: u8) -> u8{
     }
 }
 
-const fn initialize_num_to_edge() -> [[u8; 8]; 64]{
+const fn initialize_num_to_edge() -> [[i8; 8]; 64]{
     let mut rank = 0;
-    let mut file = 0;
+    let mut file;
     let mut result = [[0; 8]; 64];
 
     while rank < 8{
@@ -37,8 +49,159 @@ const fn initialize_num_to_edge() -> [[u8; 8]; 64]{
     result
 }
 
-pub(crate) const num_squares_to_edge: [[u8; 8]; 64] = initialize_num_to_edge();
+const num_squares_to_edge: [[i8; 8]; 64] = initialize_num_to_edge();
+const dir_offsets: [i8; 8] = [8, 1, -8, -1, 9, -7, -9, 7];
 
+const fn create_orthogonal_block_masks() -> [Bitboard; 64]{
+    let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
+
+    let mut i = 0;
+    while i < 64{
+
+        let square_index: usize = Square::ALL[i] as usize;
+        let mut blocker_mask = Bitboard::EMPTY;
+
+        let mut j = 0;
+        while j < 4{
+
+            let offset = dir_offsets[j];
+            let to_edge = num_squares_to_edge[square_index][j];
+
+            let mut k = 1;
+            while k < to_edge{
+
+                blocker_mask.0 |= 1 << (square_index as i8 + (offset * k));
+
+                k += 1;
+            }
+
+            j += 1;
+        }
+
+        result[i] = blocker_mask;
+        i += 1;
+    }
+
+    result
+}
+
+const fn create_diagonal_block_masks() -> [Bitboard; 64]{
+    let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
+
+    let mut i = 0;
+    while i < 64{
+
+        let square_index: usize = Square::ALL[i] as usize;
+        let mut blocker_mask = Bitboard::EMPTY;
+
+        let mut j = 4;
+        while j < 8{
+
+            let offset = dir_offsets[j];
+            let to_edge = num_squares_to_edge[square_index][j];
+
+            let mut k = 1;
+            while k < to_edge{
+
+                blocker_mask.0 |= 1 << (square_index as i8 + (offset * k));
+
+                k += 1;
+            }
+
+            j += 1;
+        }
+
+        result[i] = blocker_mask;
+        i += 1;
+    }
+
+    result
+}
+
+pub const fn generate_orthogonal_moves(start: Square, blockers: Bitboard) -> Bitboard{
+
+    let start_index = start as usize;
+    let mut result: Bitboard = Bitboard::EMPTY;
+
+    let mut i = 0;
+    while i < 4{
+
+        let offset = dir_offsets[i];
+        let to_edge = num_squares_to_edge[start_index][i];
+
+        let mut j = 1;
+        while j <= to_edge{
+            let index = start_index as i8 + offset*j;
+            if (blockers.0 >> index)&1 == 1{
+                break;
+            }
+            else{
+                result.0 |= 1 << index;
+            }
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+}
+
+pub const fn generate_diagonal_moves(start: Square, blockers: Bitboard) -> Bitboard{
+
+    let start_index = start as usize;
+    let mut result: Bitboard = Bitboard::EMPTY;
+
+    let mut i = 4;
+    while i < 8{
+
+        let offset = dir_offsets[i];
+        let to_edge = num_squares_to_edge[start_index][i];
+
+        let mut j = 1;
+        while j <= to_edge{
+            let index = start_index as i8 + offset*j;
+            if (blockers.0 >> index)&1 == 1{
+                break;
+            }
+            else{
+                result.0 |= 1 << index;
+            }
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+}
+
+const fn generate_orthogonal_offsets() -> [usize; 64]{
+    let mut result: [usize; 64] = [0; 64];
+    let mut offset_count: usize = 0;
+    let mut i = 0;
+    while i < 64{
+        result[i] = offset_count;
+        offset_count += 1 << (64-ORTH_THROWAWAY[i]);
+        i += 1;
+    }
+    result
+}
+
+const fn generate_diagonal_offsets() -> [usize; 64]{
+    let mut result: [usize; 64] = [0; 64];
+    let mut offset_count: usize = 0;
+    let mut i = 0;
+    while i < 64{
+        result[i] = offset_count;
+        offset_count += 1 << (64-DIAG_THROWAWAY[i]);
+        i += 1;
+    }
+    result
+}
+
+pub const orth_relevant_blockers: [Bitboard; 64] = create_orthogonal_block_masks();
+pub const diag_relevant_blockers: [Bitboard; 64] = create_diagonal_block_masks();
 
 pub const ORTH_MAGICS: [u64; 64] = [
     0x580002011804000_u64, 0x2840004410002008_u64, 0x2100104100200109_u64, 0x80080180841000_u64, 
@@ -94,3 +257,95 @@ pub const STRADLER_MAGICS: [u64; 64] = [
     0x2044008200820010_u64, 0x200300000400298_u64, 0x900840288100438_u64, 0x400400000888a014_u64, 
     0x120400500a0a0032_u64, 0x40000000024015_u64, 0x502d001620460404_u64, 0x2a2000000430002_u64
 ];
+
+pub const ORTH_THROWAWAY: [u8; 64] = {
+    let mut result: [u8; 64] = [0; 64];
+    let mut i = 0;
+    while i < 64{
+        result[i] = orth_relevant_blockers[i].0.count_zeros() as u8;
+        i += 1;
+    }
+    result
+};
+
+pub const DIAG_THROWAWAY: [u8; 64] = {
+    let mut result: [u8; 64] = [0; 64];
+    let mut i = 0;
+    while i < 64{
+        result[i] = diag_relevant_blockers[i].0.count_zeros() as u8;
+        i += 1;
+    }
+    result
+};
+
+pub const ORTH_OFFSETS: [usize; 64] = generate_orthogonal_offsets();
+
+pub const DIAG_OFFSETS: [usize; 64] = generate_diagonal_offsets();
+
+pub const ORTH_LOOKUPS: [Bitboard; 102400] = {
+    let mut result: [Bitboard; 102400] = [Bitboard::UNUSED; 102400];
+
+    let mut i = 0;
+    while i < 64{
+
+        let square_magic: u64 = ORTH_MAGICS[i];
+        let relevant_blockers: Bitboard = orth_relevant_blockers[i];
+        let mut blocker_subset: Bitboard = Bitboard::EMPTY;
+
+        let mut j = 0;
+        while j < (1 << (64-ORTH_THROWAWAY[i])){
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+
+            let index = magic_index(blocker_subset, square_magic, ORTH_THROWAWAY[i]);
+
+            result[index + ORTH_OFFSETS[i]] = generate_orthogonal_moves(Square::ALL[i], blocker_subset);
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+};
+
+//pub const DIAG_LOOKUPS: [Bitboard; 5248];
+
+#[cfg(test)]
+mod test{
+
+    #![allow(unused)]
+
+    use super::*;
+
+    #[test]
+    fn throwaway_count_test(){
+        for i in 0..64{
+            assert_eq!(ORTH_THROWAWAY[i] + orth_relevant_blockers[i].0.count_ones() as u8, 64);
+            assert_eq!(DIAG_THROWAWAY[i] + diag_relevant_blockers[i].0.count_ones() as u8, 64);
+        }
+    }
+
+    #[test]
+    fn orth_lookup_test(){
+
+        for square in Square::ALL{
+
+            let square_magic: u64 = ORTH_MAGICS[square];
+            let relevant_blockers = orth_relevant_blockers[square];
+            let mut blocker_subset: Bitboard = Bitboard::EMPTY;
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+
+            while !blocker_subset.is_empty(){
+                let index = magic_index(blocker_subset, square_magic, ORTH_THROWAWAY[square]);
+
+                let magic_result = ORTH_LOOKUPS[index + ORTH_OFFSETS[square]];
+                assert_eq!(magic_result, generate_orthogonal_moves(square, blocker_subset));
+
+                blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+            }
+
+        }
+
+    }
+}
