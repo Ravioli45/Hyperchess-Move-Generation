@@ -118,6 +118,34 @@ const fn create_diagonal_block_masks() -> [Bitboard; 64]{
     result
 }
 
+const fn create_king_masks() -> [Bitboard; 64]{
+    let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
+
+    let mut i = 0;
+    while i < 64{
+
+        let square_index = Square::ALL[i] as usize;
+        let mut blocker_mask = Bitboard::EMPTY;
+        
+        let mut j = 0;
+        while j < 8{
+
+            let offset = dir_offsets[j];
+            let to_edge = num_squares_to_edge[square_index][j];
+            if to_edge >= 1{
+                blocker_mask.0 |= 1 << (square_index as i8 + offset);
+            }
+
+            j += 1;
+        }
+        
+        result[i] = blocker_mask;
+        i += 1;
+    }
+
+    result
+}
+
 pub const fn generate_orthogonal_moves(start: Square, blockers: Bitboard) -> Bitboard{
 
     let start_index = start as usize;
@@ -202,6 +230,8 @@ const fn generate_diagonal_offsets() -> [usize; 64]{
 
 pub const orth_relevant_blockers: [Bitboard; 64] = create_orthogonal_block_masks();
 pub const diag_relevant_blockers: [Bitboard; 64] = create_diagonal_block_masks();
+
+pub const KING_MOVE_MASK: [Bitboard; 64] = create_king_masks();
 
 pub const ORTH_MAGICS: [u64; 64] = [
     0x580002011804000_u64, 0x2840004410002008_u64, 0x2100104100200109_u64, 0x80080180841000_u64, 
@@ -309,7 +339,32 @@ pub const ORTH_LOOKUPS: [Bitboard; 102400] = {
     result
 };
 
-//pub const DIAG_LOOKUPS: [Bitboard; 5248];
+pub const DIAG_LOOKUPS: [Bitboard; 5248] = {
+    let mut result: [Bitboard; 5248] = [Bitboard::UNUSED; 5248];
+
+    let mut i = 0;
+    while i < 64{
+
+        let square_magic: u64 = DIAG_MAGICS[i];
+        let relevant_blockers: Bitboard = diag_relevant_blockers[i];
+        let mut blocker_subset: Bitboard = Bitboard::EMPTY;
+
+        let mut j = 0;
+        while j < (1 << (64-DIAG_THROWAWAY[i])){
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+
+            let index = magic_index(blocker_subset, square_magic, DIAG_THROWAWAY[i]);
+
+            result[index + DIAG_OFFSETS[i]] = generate_diagonal_moves(Square::ALL[i], blocker_subset);
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+};
 
 #[cfg(test)]
 mod test{
@@ -328,7 +383,6 @@ mod test{
 
     #[test]
     fn orth_lookup_test(){
-
         for square in Square::ALL{
 
             let square_magic: u64 = ORTH_MAGICS[square];
@@ -344,8 +398,26 @@ mod test{
 
                 blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
             }
-
         }
+    }
 
+    #[test]
+    fn diag_lookup_test(){
+        for square in Square::ALL{
+            let square_magic = DIAG_MAGICS[square];
+            let relevant_blockers = diag_relevant_blockers[square];
+            let mut blocker_subset = Bitboard::EMPTY;
+            
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+
+            while !blocker_subset.is_empty(){
+                let index = magic_index(blocker_subset, square_magic, DIAG_THROWAWAY[square]);
+                let magic_result = DIAG_LOOKUPS[index + DIAG_OFFSETS[square]];
+
+                assert_eq!(magic_result, generate_diagonal_moves(square, blocker_subset));
+
+                blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+            }
+        }
     }
 }

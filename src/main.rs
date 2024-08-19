@@ -1,6 +1,6 @@
 use hmg::{diag_relevant_blockers, orth_relevant_blockers, DIAG_THROWAWAY, ORTH_LOOKUPS};
 use hmg::{generate_diagonal_moves, generate_orthogonal_moves, ORTH_THROWAWAY, ORTH_OFFSETS, DIAG_OFFSETS};
-use hmg::{magic_index, ORTH_MAGICS};
+use hmg::{magic_index, ORTH_MAGICS, KING_MOVE_MASK};
 use hmg::{Bitboard, Square};
 
 fn main() {
@@ -30,6 +30,6 @@ fn main() {
     let _square = Square::C3;
     let blockers = test_bb & orth_relevant_blockers[_square];
     let magic_moves = ORTH_LOOKUPS[magic_index(blockers, ORTH_MAGICS[_square], ORTH_THROWAWAY[_square]) + ORTH_OFFSETS[_square]] &! test_bb;
-    println!("{magic_moves:?}")
+    println!("{magic_moves:?}");
 
 }
