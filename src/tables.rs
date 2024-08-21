@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals)]
 
-use crate::{Bitboard, Square};
+use crate::{square, Bitboard, Square};
 
 pub const fn magic_index(blockers: Bitboard, magic: u64, throwaway: u8) -> usize{
     let hash = blockers.0.wrapping_mul(magic);
@@ -49,6 +49,7 @@ const fn initialize_num_to_edge() -> [[i8; 8]; 64]{
     result
 }
 
+// n, e, s, w, ne, se, sw, nw
 const num_squares_to_edge: [[i8; 8]; 64] = initialize_num_to_edge();
 const dir_offsets: [i8; 8] = [8, 1, -8, -1, 9, -7, -9, 7];
 
@@ -146,6 +147,35 @@ const fn create_king_masks() -> [Bitboard; 64]{
     result
 }
 
+const fn create_buddy_masks() -> [Bitboard; 64]{
+    let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
+
+    let mut i = 0;
+    while i < 64{
+
+        let square_index = Square::ALL[i] as usize;
+        let mut buddy_mask = Bitboard::EMPTY;
+
+        let mut j = 0;
+        while j < 4{
+            let offset = dir_offsets[j];
+            let to_edge = num_squares_to_edge[square_index][j];
+
+            if to_edge >= 2{
+                buddy_mask.0 |= 1 << (square_index as i8 + 2*offset);
+            }
+
+            j += 1;
+        }
+
+        result[i] = buddy_mask;
+
+        i += 1;
+    }
+
+    result
+}
+
 pub const fn generate_orthogonal_moves(start: Square, blockers: Bitboard) -> Bitboard{
 
     let start_index = start as usize;
@@ -204,6 +234,26 @@ pub const fn generate_diagonal_moves(start: Square, blockers: Bitboard) -> Bitbo
     result
 }
 
+pub const fn generate_stradler_captures(start: Square, buddies: Bitboard) -> Bitboard{
+
+    let start_index = start as usize;
+    let mut result: Bitboard = Bitboard::EMPTY;
+
+    let mut i = 0;
+    while i < 4{
+        let offset = dir_offsets[i];
+        let to_edge = num_squares_to_edge[start_index][i];
+
+        if to_edge >= 2 && ((buddies.0 >> (start_index as i8 + 2*offset))&1) == 1{
+            result.0 |= 1 << (start_index as i8 + offset);
+        }
+
+        i += 1;
+    }
+
+    result
+}
+
 const fn generate_orthogonal_offsets() -> [usize; 64]{
     let mut result: [usize; 64] = [0; 64];
     let mut offset_count: usize = 0;
@@ -228,8 +278,21 @@ const fn generate_diagonal_offsets() -> [usize; 64]{
     result
 }
 
+const fn generate_buddy_offsets() -> [usize; 64]{
+    let mut result: [usize; 64] = [0; 64];
+    let mut offset_count: usize = 0;
+    let mut i = 0;
+    while i < 64{
+        result[i] = offset_count;
+        offset_count += 1 << (64-BUDDY_THROWAWAY[i]);
+        i += 1;
+    }
+    result
+}
+
 pub const orth_relevant_blockers: [Bitboard; 64] = create_orthogonal_block_masks();
 pub const diag_relevant_blockers: [Bitboard; 64] = create_diagonal_block_masks();
+pub const relevant_buddies: [Bitboard; 64] = create_buddy_masks();
 
 pub const KING_MOVE_MASK: [Bitboard; 64] = create_king_masks();
 
@@ -308,9 +371,21 @@ pub const DIAG_THROWAWAY: [u8; 64] = {
     result
 };
 
+pub const BUDDY_THROWAWAY: [u8; 64] = {
+    let mut result: [u8; 64] = [0; 64];
+    let mut i = 0;
+    while i < 64{
+        result[i] = relevant_buddies[i].0.count_zeros() as u8;
+        i += 1;
+    }
+    result
+};
+
 pub const ORTH_OFFSETS: [usize; 64] = generate_orthogonal_offsets();
 
 pub const DIAG_OFFSETS: [usize; 64] = generate_diagonal_offsets();
+
+pub const STRADLER_OFFSETS: [usize; 64] = generate_buddy_offsets();
 
 pub const ORTH_LOOKUPS: [Bitboard; 102400] = {
     let mut result: [Bitboard; 102400] = [Bitboard::UNUSED; 102400];
@@ -366,10 +441,39 @@ pub const DIAG_LOOKUPS: [Bitboard; 5248] = {
     result
 };
 
+pub const STRADLER_LOOKUPS: [Bitboard; 576] = {
+    let mut result: [Bitboard; 576] = [Bitboard::UNUSED; 576];
+
+    let mut i = 0;
+    while i < 64{
+
+        let square_magic: u64 = STRADLER_MAGICS[i];
+        let relevant_blockers: Bitboard = relevant_buddies[i];
+        let mut blocker_subset: Bitboard = Bitboard::EMPTY;
+
+        let mut j = 0;
+        while j < (1 << (64-BUDDY_THROWAWAY[i])){
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+
+            let index = magic_index(blocker_subset, square_magic, BUDDY_THROWAWAY[i]);
+
+            result[index + STRADLER_OFFSETS[i]] = generate_stradler_captures(Square::ALL[i], blocker_subset);
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+};
+
 #[cfg(test)]
 mod test{
 
     #![allow(unused)]
+
+    use std::f64::consts::SQRT_2;
 
     use super::*;
 
@@ -417,6 +521,26 @@ mod test{
                 assert_eq!(magic_result, generate_diagonal_moves(square, blocker_subset));
 
                 blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+            }
+        }
+    }
+
+    #[test]
+    fn stradler_capture_test(){
+        for square in Square::ALL{
+            let square_magic = STRADLER_MAGICS[square];
+            let potential_buddies = relevant_buddies[square];
+            let mut buddy_subset = Bitboard::EMPTY;
+
+            buddy_subset.0 = buddy_subset.0.wrapping_sub(potential_buddies.0) & potential_buddies.0;
+
+            while !buddy_subset.is_empty(){
+                let index = magic_index(buddy_subset, square_magic, BUDDY_THROWAWAY[square]);
+                let magic_result = STRADLER_LOOKUPS[index + STRADLER_OFFSETS[square]];
+
+                assert_eq!(magic_result, generate_stradler_captures(square, buddy_subset));
+
+                buddy_subset.0 = buddy_subset.0.wrapping_sub(potential_buddies.0) & potential_buddies.0;
             }
         }
     }
