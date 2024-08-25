@@ -477,6 +477,28 @@ mod test{
 
     use super::*;
 
+    const potential_orth_blockers: [Bitboard; 64] = {
+        let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
+
+        let mut i = 0;
+        while i < 64{
+            result[i] = generate_orthogonal_moves(Square::ALL[i], Bitboard::EMPTY);
+            i += 1;
+        }
+        result
+    };
+
+    const potential_diag_blockers: [Bitboard; 64] = {
+        let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
+
+        let mut i = 0;
+        while i < 64{
+            result[i] = generate_diagonal_moves(Square::ALL[i], Bitboard::EMPTY);
+            i += 1;
+        }
+        result
+    };
+
     #[test]
     fn throwaway_count_test(){
         for i in 0..64{
@@ -490,17 +512,23 @@ mod test{
         for square in Square::ALL{
 
             let square_magic: u64 = ORTH_MAGICS[square];
-            let relevant_blockers = orth_relevant_blockers[square];
+            let max_blockers = potential_orth_blockers[square];
+            //let relevant_blockers = the_board & orth_relevant_blockers[square];
+
+            // blocker_subset represents the board
             let mut blocker_subset: Bitboard = Bitboard::EMPTY;
-            blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(max_blockers.0) & max_blockers.0;
 
             while !blocker_subset.is_empty(){
-                let index = magic_index(blocker_subset, square_magic, ORTH_THROWAWAY[square]);
+                let relevant_blockers = blocker_subset & orth_relevant_blockers[square];
+                let index = magic_index(relevant_blockers, square_magic, ORTH_THROWAWAY[square]);
 
                 let magic_result = ORTH_LOOKUPS[index + ORTH_OFFSETS[square]];
-                assert_eq!(magic_result, generate_orthogonal_moves(square, blocker_subset));
+                //println!("{blocker_subset:?}");
+                //println!("{magic_result:?}");
+                assert_eq!(magic_result &! blocker_subset, generate_orthogonal_moves(square, blocker_subset));
 
-                blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+                blocker_subset.0 = blocker_subset.0.wrapping_sub(max_blockers.0) & max_blockers.0;
             }
         }
     }
@@ -509,18 +537,20 @@ mod test{
     fn diag_lookup_test(){
         for square in Square::ALL{
             let square_magic = DIAG_MAGICS[square];
-            let relevant_blockers = diag_relevant_blockers[square];
+            //let relevant_blockers = diag_relevant_blockers[square];
+            let max_blockers = potential_diag_blockers[square];
             let mut blocker_subset = Bitboard::EMPTY;
             
-            blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(max_blockers.0) & max_blockers.0;
 
             while !blocker_subset.is_empty(){
-                let index = magic_index(blocker_subset, square_magic, DIAG_THROWAWAY[square]);
+                let relevant_blockers = blocker_subset & diag_relevant_blockers[square];
+                let index = magic_index(relevant_blockers, square_magic, DIAG_THROWAWAY[square]);
                 let magic_result = DIAG_LOOKUPS[index + DIAG_OFFSETS[square]];
 
-                assert_eq!(magic_result, generate_diagonal_moves(square, blocker_subset));
+                assert_eq!(magic_result &! blocker_subset, generate_diagonal_moves(square, blocker_subset));
 
-                blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+                blocker_subset.0 = blocker_subset.0.wrapping_sub(max_blockers.0) & max_blockers.0;
             }
         }
     }
