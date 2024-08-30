@@ -52,6 +52,7 @@ const fn initialize_num_to_edge() -> [[i8; 8]; 64]{
 // n, e, s, w, ne, se, sw, nw
 const num_squares_to_edge: [[i8; 8]; 64] = initialize_num_to_edge();
 const dir_offsets: [i8; 8] = [8, 1, -8, -1, 9, -7, -9, 7];
+const opposite_indices: [usize; 8] = [2, 3, 0, 1, 6, 7, 4, 5];
 
 const fn create_orthogonal_block_masks() -> [Bitboard; 64]{
     let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
@@ -254,6 +255,53 @@ pub const fn generate_stradler_captures(start: Square, buddies: Bitboard) -> Bit
     result
 }
 
+pub const fn generate_retractor_captures(start: Square, adjacent: Bitboard) -> Bitboard{
+
+    let start_index = start as usize;
+    let mut result: Bitboard = Bitboard::EMPTY;
+
+    let mut i = 0;
+
+    while i < 8{
+
+        let offset = dir_offsets[i];
+        let to_edge = num_squares_to_edge[start_index][i];
+
+        if to_edge >= 1 && (adjacent.0 >> (start_index as i8) + offset)&1 == 1{
+            if num_squares_to_edge[start_index][opposite_indices[i]] >= 1 && (adjacent.0 >> (start_index as i8) - offset)&1 == 0{
+                result.0 |= 1 << ((start_index as i8) - offset);
+            }
+        }
+
+        i += 1;
+    }    
+
+    result
+}
+
+pub const fn generate_retractor_captured(start: Square, adjacent: Bitboard) -> Bitboard{
+    let start_index = start as usize;
+    let mut result: Bitboard = Bitboard::EMPTY;
+
+    let mut i = 0;
+
+    while i < 8{
+
+        let offset = dir_offsets[i];
+        let to_edge = num_squares_to_edge[start_index][i];
+
+        if to_edge >= 1 && (adjacent.0 >> (start_index as i8) + offset)&1 == 1{
+            if num_squares_to_edge[start_index][opposite_indices[i]] >= 1 && (adjacent.0 >> (start_index as i8) - offset)&1 == 0{
+                result.0 |= 1 << ((start_index as i8) + offset);
+            }
+        }
+
+        i += 1;
+    }    
+
+    result
+}
+
 const fn generate_orthogonal_offsets() -> [usize; 64]{
     let mut result: [usize; 64] = [0; 64];
     let mut offset_count: usize = 0;
@@ -285,6 +333,18 @@ const fn generate_buddy_offsets() -> [usize; 64]{
     while i < 64{
         result[i] = offset_count;
         offset_count += 1 << (64-BUDDY_THROWAWAY[i]);
+        i += 1;
+    }
+    result
+}
+
+const fn generate_retractor_offsets() -> [usize; 64]{
+    let mut result: [usize; 64] = [0; 64];
+    let mut offset_count: usize = 0;
+    let mut i = 0;
+    while i < 64{
+        result[i] = offset_count;
+        offset_count += 1 << (64-RETRACTOR_THROWAWAY[i]);
         i += 1;
     }
     result
@@ -400,11 +460,23 @@ pub const BUDDY_THROWAWAY: [u8; 64] = {
     result
 };
 
+pub const RETRACTOR_THROWAWAY: [u8; 64] = {
+    let mut result: [u8; 64] = [0; 64];
+    let mut i = 0;
+    while i < 64{
+        result[i] = KING_MOVE_MASK[i].0.count_zeros() as u8;
+        i += 1;
+    }
+    result
+};
+
 pub const ORTH_OFFSETS: [usize; 64] = generate_orthogonal_offsets();
 
 pub const DIAG_OFFSETS: [usize; 64] = generate_diagonal_offsets();
 
 pub const STRADLER_OFFSETS: [usize; 64] = generate_buddy_offsets();
+
+pub const RETRACTOR_OFFSETS: [usize; 64] = generate_retractor_offsets();
 
 pub const ORTH_LOOKUPS: [Bitboard; 102400] = {
     let mut result: [Bitboard; 102400] = [Bitboard::UNUSED; 102400];
@@ -487,12 +559,66 @@ pub const STRADLER_LOOKUPS: [Bitboard; 576] = {
     result
 };
 
+pub const RETRACTOR_LOOKUPS: [Bitboard; 10016] = {
+    let mut result: [Bitboard; 10016] = [Bitboard::UNUSED; 10016];
+
+    let mut i = 0;
+
+    while i < 64{
+
+        let square_magic: u64 = RETRACTOR_MAGICS[i];
+        let relevant_blockers: Bitboard = KING_MOVE_MASK[i];
+        let mut blocker_subset: Bitboard = Bitboard::EMPTY;
+
+        let mut j = 0;
+        while j < (1 << (64-RETRACTOR_THROWAWAY[i])){
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+
+            let index = magic_index(blocker_subset, square_magic, RETRACTOR_THROWAWAY[i]);
+
+            result[index + RETRACTOR_OFFSETS[i]] = generate_retractor_captures(Square::ALL[i], blocker_subset);
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+};
+
+pub const RETRACTOR_CAPTURED: [Bitboard; 10016] = {
+    let mut result: [Bitboard; 10016] = [Bitboard::UNUSED; 10016];
+
+    let mut i = 0;
+
+    while i < 64{
+
+        let square_magic: u64 = RETRACTOR_MAGICS[i];
+        let relevant_blockers: Bitboard = KING_MOVE_MASK[i];
+        let mut blocker_subset: Bitboard = Bitboard::EMPTY;
+
+        let mut j = 0;
+        while j < (1 << (64-RETRACTOR_THROWAWAY[i])){
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
+
+            let index = magic_index(blocker_subset, square_magic, RETRACTOR_THROWAWAY[i]);
+
+            result[index + RETRACTOR_OFFSETS[i]] = generate_retractor_captured(Square::ALL[i], blocker_subset);
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+};
+
 #[cfg(test)]
 mod test{
 
     #![allow(unused)]
-
-    use std::f64::consts::SQRT_2;
 
     use super::*;
 
@@ -590,6 +716,28 @@ mod test{
                 assert_eq!(magic_result, generate_stradler_captures(square, buddy_subset));
 
                 buddy_subset.0 = buddy_subset.0.wrapping_sub(potential_buddies.0) & potential_buddies.0;
+            }
+        }
+    }
+
+    #[test]
+    fn retractor_capture_test(){
+        for square in Square::ALL{
+            let square_magic = RETRACTOR_MAGICS[square];
+            let potential_captures = KING_MOVE_MASK[square];
+            let mut adj_subset = Bitboard::EMPTY;
+
+            adj_subset.0 = adj_subset.0.wrapping_sub(potential_captures.0) & potential_captures.0;
+
+            while !adj_subset.is_empty(){
+                let index = magic_index(adj_subset, square_magic, RETRACTOR_THROWAWAY[square]);
+                let magic_result = RETRACTOR_LOOKUPS[index + RETRACTOR_OFFSETS[square]];
+                let magic_captured = RETRACTOR_CAPTURED[index + RETRACTOR_OFFSETS[square]];
+
+                assert_eq!(magic_result, generate_retractor_captures(square, adj_subset));
+                assert_eq!(magic_captured, generate_retractor_captured(square, adj_subset));
+
+                adj_subset.0 = adj_subset.0.wrapping_sub(potential_captures.0) & potential_captures.0;
             }
         }
     }
