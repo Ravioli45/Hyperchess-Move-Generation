@@ -86,12 +86,14 @@ impl Bitboard{
     }
 
     /// finds index of lsb with debruijn multiplication
-    pub fn bitscanforward(&self) -> usize{
-        assert!(!self.is_empty());
+    pub const fn bitscanforward(&self) -> usize{
+        //assert!(!self.is_empty());
+        assert!(self.0 != 0);
         Self::MAGIC_TABLE[((self.0 & self.0.wrapping_neg()).wrapping_mul(Self::MAGIC)).wrapping_shr(58) as usize]
     }
-    pub fn pop_lsb(&mut self) -> usize{
-        assert!(!self.is_empty());
+    pub const fn pop_lsb(&mut self) -> usize{
+        //assert!(!self.is_empty());
+        assert!(self.0 != 0);
         let lsb = self.bitscanforward();
         self.0 &= self.0-1;
         lsb

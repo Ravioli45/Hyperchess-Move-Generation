@@ -1,7 +1,8 @@
 #![allow(non_upper_case_globals)]
 
-use crate::{square, Bitboard, Square};
+use crate::{Bitboard, Square};
 
+#[inline(always)]
 pub const fn magic_index(blockers: Bitboard, magic: u64, throwaway: u8) -> usize{
     let hash = blockers.0.wrapping_mul(magic);
     let index = (hash >> throwaway) as usize;
@@ -206,6 +207,32 @@ pub const fn generate_orthogonal_moves(start: Square, blockers: Bitboard) -> Bit
     result
 }
 
+pub const fn generate_orthogonal_lookup(start: Square, blockers: Bitboard) -> Bitboard{
+    let start_index = start as usize;
+    let mut result: Bitboard = Bitboard::EMPTY;
+
+    let mut i = 0;
+    while i < 4{
+
+        let offset = dir_offsets[i];
+        let to_edge = num_squares_to_edge[start_index][i];
+
+        let mut j = 1;
+        while j <= to_edge{
+            let index = start_index as i8 + offset*j;
+            result.0 |= 1 << index;
+            if (blockers.0 >> index)&1 == 1{
+                break;
+            }
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+}
+
 pub const fn generate_diagonal_moves(start: Square, blockers: Bitboard) -> Bitboard{
 
     let start_index = start as usize;
@@ -225,6 +252,32 @@ pub const fn generate_diagonal_moves(start: Square, blockers: Bitboard) -> Bitbo
             }
             else{
                 result.0 |= 1 << index;
+            }
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+}
+
+pub const fn generate_diagonal_lookup(start: Square, blockers: Bitboard) -> Bitboard{
+    let start_index = start as usize;
+    let mut result: Bitboard = Bitboard::EMPTY;
+
+    let mut i = 4;
+    while i < 8{
+
+        let offset = dir_offsets[i];
+        let to_edge = num_squares_to_edge[start_index][i];
+
+        let mut j = 1;
+        while j <= to_edge{
+            let index = start_index as i8 + offset*j;
+            result.0 |= 1 << index;
+            if (blockers.0 >> index)&1 == 1{
+                break;
             }
             j += 1;
         }
@@ -298,6 +351,114 @@ pub const fn generate_retractor_captured(start: Square, adjacent: Bitboard) -> B
 
         i += 1;
     }    
+
+    result
+}
+
+pub const fn generate_springer_captures(start: Square, relevant_blockers: Bitboard) -> Bitboard{
+
+    let start_index = start as usize;
+    let mut result: Bitboard = Bitboard::EMPTY;
+
+    let mut i = 0;
+
+    while i < 8{
+
+        let offset = dir_offsets[i];
+        let to_edge = num_squares_to_edge[start_index][i];
+
+        let mut j = 1;
+        while j < to_edge{
+
+            if relevant_blockers.0 >> ((start_index as i8) + (offset * j as i8))&1 == 1{
+                if relevant_blockers.0 >> ((start_index as i8) + (offset * (j+1) as i8))&1 == 0{
+                    result.0 |= 1 << (start_index as i8 + (offset * (j+1) as i8));
+                }
+                break;
+            }
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+    
+    result
+
+}
+
+pub const fn generate_springer_captured(start: Square, relevant_blockers: Bitboard) -> Bitboard{
+    let start_index = start as usize;
+    let mut result: Bitboard = Bitboard::EMPTY;
+
+    let mut i = 0;
+
+    while i < 8{
+
+        let offset = dir_offsets[i];
+        let to_edge = num_squares_to_edge[start_index][i];
+
+        let mut j = 1;
+        while j < to_edge{
+
+            if relevant_blockers.0 >> ((start_index as i8) + (offset * j as i8))&1 == 1{
+                if relevant_blockers.0 >> ((start_index as i8) + (offset * (j+1) as i8))&1 == 0{
+                    result.0 |= 1 << (start_index as i8 + (offset * (j) as i8));
+                }
+                break;
+            }
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+}
+
+const fn get_death_squares(mut king_coord_bitboard: Bitboard) -> Bitboard{
+
+    let s1 = king_coord_bitboard.pop_lsb();
+
+    if king_coord_bitboard.0 == 0{
+        return Bitboard::EMPTY;
+    }
+
+    let s2 = king_coord_bitboard.pop_lsb();
+
+    let rank1 = s1/8;
+    let file1 = s1-(rank1*8);
+
+    let rank2 = s2/8;
+    let file2 = s2-(rank2*8);
+
+    if rank1 == rank2 || file1 == file2{
+        Bitboard::EMPTY
+    }
+    else{
+        let death1 = (rank1*8) + file2;
+        let death2 = (rank2*8) + file1;
+        Bitboard(1 << death1 | 1 << death2)
+    }
+}
+
+const fn generate_death_square_lookup() -> [[Bitboard; 64]; 64]{
+    let mut result: [[Bitboard; 64]; 64] = [[Bitboard::EMPTY; 64]; 64];
+
+    let mut i = 0;
+
+    while i < 64{
+        let mut j = 0;
+
+        while j < 64{
+
+            result[i][j] = get_death_squares(Bitboard(1 << i | 1 << j));
+
+            j += 1;
+        }
+        i += 1;
+    }
 
     result
 }
@@ -430,24 +591,6 @@ pub const RETRACTOR_MAGICS: [u64; 64] = [
     0xc04d0082000000c_u64, 0x4c01000000000011_u64, 0x80004040009d1001_u64, 0x50300000862000_u64
 ];
 
-pub const SPRINGER_ORTH_MAGICS: [u64; 64] = [
-    0x580002011804000_u64, 0x2840004410002008_u64, 0x2100104100200109_u64, 0x80080180841000_u64,
-    0x200041002000820_u64, 0x200840010120028_u64, 0x680020007000180_u64, 0x8600005103802604_u64,
-    0x40800040003189_u64, 0x8400400050082000_u64, 0x2000801000822005_u64, 0x1001000821001004_u64,
-    0x822002090048a00_u64, 0x1801200800c01_u64, 0xa0b000100644200_u64, 0x8080801100004480_u64,
-    0x1880004000200440_u64, 0x810004004200440_u64, 0x12020041801023_u64, 0x3120028402200_u64,
-    0x808004004004200_u64, 0x14008002008004_u64, 0x402040010180201_u64, 0xc2010a0002428401_u64,
-    0x1c00280012181_u64, 0x810004840002000_u64, 0x1200880100080_u64, 0x101480480100081_u64,
-    0x1041480100111500_u64, 0xa000040080020080_u64, 0x284181400125045_u64, 0x3009285200008421_u64,
-    0x8002204001800489_u64, 0x4200184804000_u64, 0x202410251002000_u64, 0xa784811000800800_u64,
-    0x801c01800800_u64, 0x2500800400800200_u64, 0xc010085074000302_u64, 0x50005082002104_u64,
-    0x402400080028020_u64, 0x1004c020014002_u64, 0x200041050010_u64, 0x610008100080800_u64,
-    0x403c008040080800_u64, 0x1800402010080104_u64, 0x1000812862440010_u64, 0x100058059120014_u64,
-    0x2480014004208480_u64, 0x80a01080400580_u64, 0xa04100102000c100_u64, 0x3880812802100280_u64,
-    0x28000900100500_u64, 0x285800400020180_u64, 0x42194a08104400_u64, 0x13000040822100_u64,
-    0x80110042008422_u64, 0x89201a1008442_u64, 0x8820040101822_u64, 0x800082420300101_u64,
-    0x2052001810200402_u64, 0x4100080a8c0001_u64, 0x800208048a01100c_u64, 0x240c80410a_u64
-];
 
 pub const ORTH_THROWAWAY: [u8; 64] = {
     let mut result: [u8; 64] = [0; 64];
@@ -513,7 +656,7 @@ pub const ORTH_LOOKUPS: [Bitboard; 102400] = {
 
             let index = magic_index(blocker_subset, square_magic, ORTH_THROWAWAY[i]);
 
-            result[index + ORTH_OFFSETS[i]] = generate_orthogonal_moves(Square::ALL[i], blocker_subset);
+            result[index + ORTH_OFFSETS[i]] = generate_orthogonal_lookup(Square::ALL[i], blocker_subset);
 
             j += 1;
         }
@@ -540,7 +683,7 @@ pub const DIAG_LOOKUPS: [Bitboard; 5248] = {
 
             let index = magic_index(blocker_subset, square_magic, DIAG_THROWAWAY[i]);
 
-            result[index + DIAG_OFFSETS[i]] = generate_diagonal_moves(Square::ALL[i], blocker_subset);
+            result[index + DIAG_OFFSETS[i]] = generate_diagonal_lookup(Square::ALL[i], blocker_subset);
 
             j += 1;
         }
@@ -634,10 +777,40 @@ pub const RETRACTOR_CAPTURED: [Bitboard; 10016] = {
     result
 };
 
+// [springer position][position of captured piece]
+pub const SPRINGER_CAPTURE_LOOKUP: [[Bitboard; 64]; 64] = {
+    let mut result: [[Bitboard; 64]; 64] = [[Bitboard::EMPTY; 64]; 64];
+
+    let mut i = 0;
+
+    while i < 64{
+
+        let mut j = 0;
+
+        while j < 64{
+
+            // i: springer pos
+            // j: captured 
+            result[i][j] = generate_springer_captures(Square::ALL[i], Bitboard(1 << j));
+
+            j += 1;
+        }
+
+        i+= 1;
+    }
+
+    result
+};
+
+
+pub const DEATH_SQUARE_LOOKUP: [[Bitboard; 64]; 64] = generate_death_square_lookup();
+
 #[cfg(test)]
 mod test{
 
     #![allow(unused)]
+
+    use crate::square;
 
     use super::*;
 
@@ -759,5 +932,80 @@ mod test{
                 adj_subset.0 = adj_subset.0.wrapping_sub(potential_captures.0) & potential_captures.0;
             }
         }
+    }
+
+    #[test]
+    fn springer_capture_test(){
+        
+        for square in Square::ALL{
+
+            let orth_square_magic: u64 = ORTH_MAGICS[square];
+            let diag_square_magic: u64 = DIAG_MAGICS[square];
+            //let max_blockers = potential_orth_blockers[square];
+            let max_blockers = potential_orth_blockers[square] | potential_diag_blockers[square];
+            //let relevant_blockers = the_board & orth_relevant_blockers[square];
+
+            // blocker_subset represents the board
+            let mut blocker_subset: Bitboard = Bitboard::EMPTY;
+            blocker_subset.0 = blocker_subset.0.wrapping_sub(max_blockers.0) & max_blockers.0;
+
+            while !blocker_subset.is_empty(){
+                let orth_blockers = blocker_subset & orth_relevant_blockers[square];
+                let orth_index = magic_index(orth_blockers, orth_square_magic, ORTH_THROWAWAY[square]);
+
+                let diag_blockers = blocker_subset & diag_relevant_blockers[square];
+                let diag_index = magic_index(diag_blockers, diag_square_magic, DIAG_THROWAWAY[square]);
+
+                //let magic_result = SPRINGER_ORTH_LOOKUPS[index + ORTH_OFFSETS[square]];
+                //let magic_captured = SPRINGER_ORTH_CAPTURED[index + ORTH_OFFSETS[square]];
+                let orth_result = ORTH_LOOKUPS[orth_index + ORTH_OFFSETS[square]];
+                let diag_result = DIAG_LOOKUPS[diag_index + DIAG_OFFSETS[square]];
+                let magic_result = orth_result | diag_result;
+
+                //println!("{max_blockers:?}");
+                //println!("{blocker_subset:?}");
+                //println!("{magic_result:?}");
+                //println!("{:?}", generate_orth_springer_captured(square, blocker_subset));
+                let mut captured = Bitboard::EMPTY;
+                let mut captures = Bitboard::EMPTY;
+
+                let mut potential_captures = magic_result & blocker_subset;
+
+                while !potential_captures.is_empty(){
+
+                    let captured_bit = potential_captures.pop_lsb();
+                    let land_on = SPRINGER_CAPTURE_LOOKUP[square][captured_bit];
+
+                    // if landing square is empty
+                    if !(land_on & !blocker_subset).is_empty(){
+                        captured |= Bitboard(1 << captured_bit);
+                        captures |= land_on;
+                    }
+                }
+
+                assert_eq!(captures, generate_springer_captures(square, blocker_subset));
+                assert_eq!(captured, generate_springer_captured(square, blocker_subset));
+                //assert_eq!(magic_result &! blocker_subset, generate_orth_springer_captures(square, blocker_subset));
+                //assert_eq!(magic_result & blocker_subset, generate_orth_springer_captured(square, blocker_subset));
+
+                blocker_subset.0 = blocker_subset.0.wrapping_sub(max_blockers.0) & max_blockers.0;
+            }
+        }
+
+    }
+
+    #[test]
+    fn death_square_lookup_test(){
+
+        for s1 in Square::ALL{
+
+            for s2 in Square::ALL{
+
+                let king_coord_bb = Bitboard(1 << (s1 as u64) | 1 << (s2 as u64));
+                assert_eq!(DEATH_SQUARE_LOOKUP[s1][s2], get_death_squares(king_coord_bb));
+
+            }
+        }
+
     }
 }
