@@ -2,6 +2,7 @@ use hmg::{diag_relevant_blockers, generate_retractor_captures, orth_relevant_blo
 use hmg::{generate_diagonal_moves, generate_orthogonal_moves, ORTH_THROWAWAY, ORTH_OFFSETS, DIAG_OFFSETS, RETRACTOR_OFFSETS};
 use hmg::{magic_index, ORTH_MAGICS, KING_MOVE_MASK, relevant_buddies, generate_stradler_captures, STRADLER_OFFSETS, RETRACTOR_THROWAWAY};
 use hmg::{Bitboard, Square, DEATH_SQUARE_LOOKUP, SPRINGER_CAPTURE_LOOKUP};
+use hmg::Position;
 
 fn main() {
     
@@ -81,4 +82,10 @@ fn main() {
     println!("{:?}", Bitboard(1 << (Square::C3 as u64) |  1 << (Square::G6 as u64)));
     println!("{:?}", DEATH_SQUARE_LOOKUP[Square::C3][Square::G6]);
 
+    println!("Positions");
+
+    let mut start_position = Position::from_start_position();
+
+    
+    println!("{}", start_position);
 }
