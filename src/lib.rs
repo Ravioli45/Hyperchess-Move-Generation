@@ -3,6 +3,7 @@ mod tables;
 mod square;
 mod position;
 mod r#move;
+pub(crate) mod utils;
 
 pub(crate) use position::Piece;
 

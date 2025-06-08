@@ -108,7 +108,7 @@ impl Move{
 }
 impl fmt::Display for Move{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{
-        writeln!(f, "{}{}", Square::NAMES[self.get_from()], Square::NAMES[self.get_to()])
+        write!(f, "{}{}", self.get_from(), self.get_to())
     }
 }
 

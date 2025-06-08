@@ -1,3 +1,4 @@
+use crate::utils::{num_and_all, impl_indexing};
 use crate::Bitboard;
 
 use std::ops::{Index, IndexMut, BitOr};
@@ -15,46 +16,29 @@ impl From<ParseIntError> for ReadFenError{
 
 type Result<T> = std::result::Result<T, ReadFenError>;
 
-macro_rules! impl_index {
-    (
-        $($enum:ident;)*
-    ) 
-    => 
-    {
-        $(
-            impl<T, const N: usize> Index<$enum> for [T; N]{
-                type Output = T;
-
-                fn index(&self, index: $enum) -> &Self::Output{
-                    &self[index as usize]
-                }
-            }
-            impl<T, const N: usize> IndexMut<$enum> for [T; N]{
-                fn index_mut(&mut self, index: $enum) -> &mut Self::Output{
-                    &mut self[index as usize]
-                }
-            }
-        )*
-    };
-}
-
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Color{
+pub(crate) enum Color{
     White = 0,
     Black = 8,
 }
-impl BitOr<Piece> for Color{
+impl From<Color> for usize{
+    fn from(value: Color) -> Self {
+        value as usize
+    }
+}
+impl<T: Into<usize>> BitOr<T> for Color{
     type Output = usize;
 
-    fn bitor(self, rhs: Piece) -> Self::Output {
-        (self as usize) | (rhs as usize)
+    fn bitor(self, rhs: T) -> Self::Output {
+        (self as usize) | (rhs.into())
     }
 }
 
+num_and_all!{
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Piece{
+pub(crate) enum Piece{
     Stradler = 1,
     Coordinator = 2,
     Springer = 3,
@@ -63,21 +47,24 @@ enum Piece{
     Immobilizer = 6,
     King = 7,
 }
+}
 impl Piece{
     const PIECE_SYMBOLS: [char; 16] = ['.', 'P', 'R', 'N', 'B', 'Q', 'U', 'K', '.', 'p', 'r', 'n', 'b', 'q', 'u', 'k'];
 }
-impl BitOr<Color> for Piece{
+impl From<Piece> for usize{
+    fn from(value: Piece) -> Self{
+        value as usize
+    }
+}
+impl<T: Into<usize>> BitOr<T> for Piece{
     type Output = usize;
 
-    fn bitor(self, rhs: Color) -> Self::Output {
-        (self as usize) | (rhs as usize)
+    fn bitor(self, rhs: T) -> Self::Output {
+        (self as usize) | (rhs.into() as usize)
     }
 }
 
-impl_index!(
-    Color;
-    Piece;
-);
+impl_indexing!(Color, Piece);
 
 pub struct Position{
     boards: [Bitboard; 16],
@@ -123,7 +110,9 @@ impl Position{
 
             let color = if piece.is_ascii_uppercase() {Color::White} else {Color::Black};
 
-            piece = piece.to_ascii_lowercase();
+            // make_ascii_lowercase
+            //piece = piece.to_ascii_lowercase();
+            piece.make_ascii_lowercase();
 
             let piece_index = match piece{
                 'p' => Piece::Stradler,
