@@ -2,6 +2,9 @@ mod bitboard;
 mod tables;
 mod square;
 mod position;
+mod r#move;
+
+pub(crate) use position::Piece;
 
 pub use bitboard::Bitboard;
 pub use square::Square;
