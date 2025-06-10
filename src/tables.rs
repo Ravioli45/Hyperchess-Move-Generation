@@ -51,9 +51,9 @@ const fn initialize_num_to_edge() -> [[i8; 8]; 64]{
 }
 
 // n, e, s, w, ne, se, sw, nw
-const num_squares_to_edge: [[i8; 8]; 64] = initialize_num_to_edge();
-const dir_offsets: [i8; 8] = [8, 1, -8, -1, 9, -7, -9, 7];
-const opposite_indices: [usize; 8] = [2, 3, 0, 1, 6, 7, 4, 5];
+static num_squares_to_edge: [[i8; 8]; 64] = initialize_num_to_edge();
+static dir_offsets: [i8; 8] = [8, 1, -8, -1, 9, -7, -9, 7];
+static opposite_indices: [usize; 8] = [2, 3, 0, 1, 6, 7, 4, 5];
 
 const fn create_orthogonal_block_masks() -> [Bitboard; 64]{
     let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
@@ -511,13 +511,13 @@ const fn generate_retractor_offsets() -> [usize; 64]{
     result
 }
 
-pub const orth_relevant_blockers: [Bitboard; 64] = create_orthogonal_block_masks();
-pub const diag_relevant_blockers: [Bitboard; 64] = create_diagonal_block_masks();
-pub const relevant_buddies: [Bitboard; 64] = create_buddy_masks();
+pub static orth_relevant_blockers: [Bitboard; 64] = create_orthogonal_block_masks();
+pub static diag_relevant_blockers: [Bitboard; 64] = create_diagonal_block_masks();
+pub static relevant_buddies: [Bitboard; 64] = create_buddy_masks();
 
-pub const KING_MOVE_MASK: [Bitboard; 64] = create_king_masks();
+pub static KING_MOVE_MASK: [Bitboard; 64] = create_king_masks();
 
-pub const ORTH_MAGICS: [u64; 64] = [
+pub static ORTH_MAGICS: [u64; 64] = [
     0x580002011804000_u64, 0x2840004410002008_u64, 0x2100104100200109_u64, 0x80080180841000_u64, 
     0x200041002000820_u64, 0x200840010120028_u64, 0x680020007000180_u64, 0x8600005103802604_u64, 
     0x40800040003189_u64, 0x8400400050082000_u64, 0x2000801000822005_u64, 0x1001000821001004_u64, 
@@ -535,7 +535,7 @@ pub const ORTH_MAGICS: [u64; 64] = [
     0x80110042008422_u64, 0x89201a1008442_u64, 0x8820040101822_u64, 0x800082420300101_u64, 
     0x2052001810200402_u64, 0x4100080a8c0001_u64, 0x800208048a01100c_u64, 0x240c80410a_u64
 ];
-pub const DIAG_MAGICS: [u64; 64] = [
+pub static DIAG_MAGICS: [u64; 64] = [
     0x8400414004202a0_u64, 0x8a52540c04034010_u64, 0x41550501000005_u64, 0x180404208814019c_u64, 
     0x400c042008800100_u64, 0x8012028aa0001000_u64, 0x1001465010080108_u64, 0x8000a20810881801_u64, 
     0x4005010a0200_u64, 0x100c60a04141088_u64, 0x46088802c48200_u64, 0x8400140400980002_u64, 
@@ -553,7 +553,7 @@ pub const DIAG_MAGICS: [u64; 64] = [
     0x460840190900880_u64, 0x40011401010829_u64, 0x310450884c81800_u64, 0x4010000002050400_u64, 
     0x2000802028902401_u64, 0x2020000420440110_u64, 0x4c1020600a208314_u64, 0x9104205449020010_u64,
 ];
-pub const STRADLER_MAGICS: [u64; 64] = [
+pub static STRADLER_MAGICS: [u64; 64] = [
     0x6000680210a00008_u64, 0xb1a41022028404c_u64, 0x4200200840000800_u64, 0x5200102000029422_u64, 
     0x228004c108001002_u64, 0xd00028a04000000_u64, 0x1840410402004010_u64, 0x480108102000101_u64, 
     0x8010018028000c00_u64, 0x1400a020020001_u64, 0xc484003862080002_u64, 0x521805011105020_u64, 
@@ -572,7 +572,7 @@ pub const STRADLER_MAGICS: [u64; 64] = [
     0x120400500a0a0032_u64, 0x40000000024015_u64, 0x502d001620460404_u64, 0x2a2000000430002_u64
 ];
 
-pub const RETRACTOR_MAGICS: [u64; 64] = [
+pub static RETRACTOR_MAGICS: [u64; 64] = [
     0x8100048804400_u64, 0xa004012501082080_u64, 0x100000a40001c200_u64, 0x11002c4010200000_u64, 
     0x90001048488400c_u64, 0x50c00000180040a0_u64, 0x100008414021005_u64, 0x8895200400060020_u64,
     0x4800410004000410_u64, 0x44026000c3804002_u64, 0x9000c20200000100_u64, 0x180061000400001c_u64,
@@ -592,7 +592,7 @@ pub const RETRACTOR_MAGICS: [u64; 64] = [
 ];
 
 
-pub const ORTH_THROWAWAY: [u8; 64] = {
+pub static ORTH_THROWAWAY: [u8; 64] = {
     let mut result: [u8; 64] = [0; 64];
     let mut i = 0;
     while i < 64{
@@ -602,7 +602,7 @@ pub const ORTH_THROWAWAY: [u8; 64] = {
     result
 };
 
-pub const DIAG_THROWAWAY: [u8; 64] = {
+pub static DIAG_THROWAWAY: [u8; 64] = {
     let mut result: [u8; 64] = [0; 64];
     let mut i = 0;
     while i < 64{
@@ -612,7 +612,7 @@ pub const DIAG_THROWAWAY: [u8; 64] = {
     result
 };
 
-pub const BUDDY_THROWAWAY: [u8; 64] = {
+pub static BUDDY_THROWAWAY: [u8; 64] = {
     let mut result: [u8; 64] = [0; 64];
     let mut i = 0;
     while i < 64{
@@ -622,7 +622,7 @@ pub const BUDDY_THROWAWAY: [u8; 64] = {
     result
 };
 
-pub const RETRACTOR_THROWAWAY: [u8; 64] = {
+pub static RETRACTOR_THROWAWAY: [u8; 64] = {
     let mut result: [u8; 64] = [0; 64];
     let mut i = 0;
     while i < 64{
@@ -632,15 +632,15 @@ pub const RETRACTOR_THROWAWAY: [u8; 64] = {
     result
 };
 
-pub const ORTH_OFFSETS: [usize; 64] = generate_orthogonal_offsets();
+pub static ORTH_OFFSETS: [usize; 64] = generate_orthogonal_offsets();
 
-pub const DIAG_OFFSETS: [usize; 64] = generate_diagonal_offsets();
+pub static DIAG_OFFSETS: [usize; 64] = generate_diagonal_offsets();
 
-pub const STRADLER_OFFSETS: [usize; 64] = generate_buddy_offsets();
+pub static STRADLER_OFFSETS: [usize; 64] = generate_buddy_offsets();
 
-pub const RETRACTOR_OFFSETS: [usize; 64] = generate_retractor_offsets();
+pub static RETRACTOR_OFFSETS: [usize; 64] = generate_retractor_offsets();
 
-pub const ORTH_LOOKUPS: [Bitboard; 102400] = {
+pub static ORTH_LOOKUPS: [Bitboard; 102400] = {
     let mut result: [Bitboard; 102400] = [Bitboard::UNUSED; 102400];
 
     let mut i = 0;
@@ -667,7 +667,7 @@ pub const ORTH_LOOKUPS: [Bitboard; 102400] = {
     result
 };
 
-pub const DIAG_LOOKUPS: [Bitboard; 5248] = {
+pub static DIAG_LOOKUPS: [Bitboard; 5248] = {
     let mut result: [Bitboard; 5248] = [Bitboard::UNUSED; 5248];
 
     let mut i = 0;
@@ -694,7 +694,7 @@ pub const DIAG_LOOKUPS: [Bitboard; 5248] = {
     result
 };
 
-pub const STRADLER_LOOKUPS: [Bitboard; 576] = {
+pub static STRADLER_LOOKUPS: [Bitboard; 576] = {
     let mut result: [Bitboard; 576] = [Bitboard::UNUSED; 576];
 
     let mut i = 0;
@@ -721,7 +721,7 @@ pub const STRADLER_LOOKUPS: [Bitboard; 576] = {
     result
 };
 
-pub const RETRACTOR_LOOKUPS: [Bitboard; 10016] = {
+pub static RETRACTOR_LOOKUPS: [Bitboard; 10016] = {
     let mut result: [Bitboard; 10016] = [Bitboard::UNUSED; 10016];
 
     let mut i = 0;
@@ -749,7 +749,7 @@ pub const RETRACTOR_LOOKUPS: [Bitboard; 10016] = {
     result
 };
 
-pub const RETRACTOR_CAPTURED: [Bitboard; 10016] = {
+pub static RETRACTOR_CAPTURED: [Bitboard; 10016] = {
     let mut result: [Bitboard; 10016] = [Bitboard::UNUSED; 10016];
 
     let mut i = 0;
@@ -778,7 +778,7 @@ pub const RETRACTOR_CAPTURED: [Bitboard; 10016] = {
 };
 
 // [springer position][position of captured piece]
-pub const SPRINGER_CAPTURE_LOOKUP: [[Bitboard; 64]; 64] = {
+pub static SPRINGER_CAPTURE_LOOKUP: [[Bitboard; 64]; 64] = {
     let mut result: [[Bitboard; 64]; 64] = [[Bitboard::EMPTY; 64]; 64];
 
     let mut i = 0;
@@ -803,7 +803,7 @@ pub const SPRINGER_CAPTURE_LOOKUP: [[Bitboard; 64]; 64] = {
 };
 
 
-pub const DEATH_SQUARE_LOOKUP: [[Bitboard; 64]; 64] = generate_death_square_lookup();
+pub static DEATH_SQUARE_LOOKUP: [[Bitboard; 64]; 64] = generate_death_square_lookup();
 
 #[cfg(test)]
 mod test{
@@ -814,7 +814,7 @@ mod test{
 
     use super::*;
 
-    const potential_orth_blockers: [Bitboard; 64] = {
+    static potential_orth_blockers: [Bitboard; 64] = {
         let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
 
         let mut i = 0;
@@ -825,7 +825,7 @@ mod test{
         result
     };
 
-    const potential_diag_blockers: [Bitboard; 64] = {
+    static potential_diag_blockers: [Bitboard; 64] = {
         let mut result: [Bitboard; 64] = [Bitboard::EMPTY; 64];
 
         let mut i = 0;
