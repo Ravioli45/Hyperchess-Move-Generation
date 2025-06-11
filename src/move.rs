@@ -1,4 +1,4 @@
-use crate::{Piece, Square};
+use crate::types::{Piece, Square};
 
 use std::fmt;
 use std::mem::transmute;
@@ -10,98 +10,98 @@ use std::mem::transmute;
 //
 // remaining bits describe captures
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Move(u32);
+pub struct Move(pub(crate) u32);
 impl Move{
-    pub fn get_from(&self) -> Square{
+    pub(crate) fn get_from(&self) -> Square{
         //(self.0 & 0x3f) as usize
         unsafe{
             transmute::<usize, Square>((self.0 & 0x3f) as usize)
         }
     }
-    pub fn set_from(&mut self, s: Square){
+    pub(crate) fn set_from(&mut self, s: Square){
         self.0 |= s as u32;
     }
 
-    pub fn get_to(&self) -> Square{
+    pub(crate) fn get_to(&self) -> Square{
         //((self.0 & 0xFC0) >> 6) as usize
         unsafe{
             transmute::<usize, Square>(((self.0 & 0xFC0) >> 6) as usize)
         }
     }
-    pub fn set_to(&mut self, s: Square){
+    pub(crate) fn set_to(&mut self, s: Square){
         self.0 |= (s as u32) << 6;
     }
 
-    pub fn get_piece(&self) -> Piece{
+    pub(crate) fn get_piece(&self) -> Piece{
         unsafe{
             transmute::<usize, Piece>(((self.0 & 0x7000) >> 12) as usize)
         }
     }
-    pub fn set_piece(&mut self, p: Piece){
+    pub(crate) fn set_piece(&mut self, p: Piece){
         self.0 |= (p as u32) << 12;
     }
 
-    pub fn get_c1_piece(&self) -> Piece{
+    pub(crate) fn get_c1_piece(&self) -> Piece{
         unsafe{
             transmute::<usize, Piece>(((self.0 & 0x38000) >> 15) as usize)
         }
     }
-    pub fn set_c1_piece(&mut self, p: Piece){
+    pub(crate) fn set_c1_piece(&mut self, p: Piece){
         self.0 |= (p as u32) << 15;
     }
 
-    pub fn get_c2_piece(&self) -> Piece{
+    pub(crate) fn get_c2_piece(&self) -> Piece{
         unsafe{
             transmute::<usize, Piece>(((self.0 & 0x1C0000) >> 18) as usize)
         }
     }
-    pub fn set_c2_piece(&mut self, p: Piece){
+    pub(crate) fn set_c2_piece(&mut self, p: Piece){
         self.0 |= (p as u32) << 18;
     }
 
-    pub fn get_c3_piece(&self) -> Piece{
+    pub(crate) fn get_c3_piece(&self) -> Piece{
         unsafe{
             transmute::<usize, Piece>(((self.0 & 0xE00000) >> 21) as usize)
         }
     }
-    pub fn set_c3_piece(&mut self, p: Piece){
+    pub(crate) fn set_c3_piece(&mut self, p: Piece){
         self.0 |= (p as u32) << 21;
     }
 
-    pub fn get_c4_piece(&self) -> Piece{
+    pub(crate) fn get_c4_piece(&self) -> Piece{
         unsafe{
             transmute::<usize, Piece>(((self.0 & 0x7000000) >> 24) as usize)
         }
     }
-    pub fn set_c4_piece(&mut self, p: Piece){
+    pub(crate) fn set_c4_piece(&mut self, p: Piece){
         self.0 |= (p as u32) << 24;
     }
 
-    pub fn get_c5_bit(&self) -> bool{
+    pub(crate) fn get_c5_bit(&self) -> bool{
        ((self.0 & 0x8000000) >> 27) != 0
     }
-    pub fn set_c5_bit(&mut self, b: bool){
+    pub(crate) fn set_c5_bit(&mut self, b: bool){
         self.0 |= (b as u32) << 27;
     }
 
-    pub fn get_c6_bit(&self) -> bool{
+    pub(crate) fn get_c6_bit(&self) -> bool{
        ((self.0 & 0x10000000) >> 28) != 0
     }
-    pub fn set_c6_bit(&mut self, b: bool){
+    pub(crate) fn set_c6_bit(&mut self, b: bool){
         self.0 |= (b as u32) << 28;
     }
 
-    pub fn get_c7_bit(&self) -> bool{
+    pub(crate) fn get_c7_bit(&self) -> bool{
        ((self.0 & 0x20000000) >> 29) != 0
     }
-    pub fn set_c7_bit(&mut self, b: bool){
+    pub(crate) fn set_c7_bit(&mut self, b: bool){
         self.0 |= (b as u32) << 29;
     }
 
-    pub fn get_c8_bit(&self) -> bool{
+    pub(crate) fn get_c8_bit(&self) -> bool{
        ((self.0 & 0x40000000) >> 30) != 0
     }
-    pub fn set_c8_bit(&mut self, b: bool){
+    pub(crate) fn set_c8_bit(&mut self, b: bool){
         self.0 |= (b as u32) << 30;
     }
 
@@ -116,7 +116,6 @@ impl fmt::Display for Move{
 #[cfg(test)]
 mod test{
 
-    use crate::{Piece, Square};
     use super::*;
 
     #[test]

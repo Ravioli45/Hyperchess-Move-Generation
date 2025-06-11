@@ -1,73 +1,29 @@
-use crate::utils::{num_and_all, impl_indexing};
-use crate::Bitboard;
+use crate::types::{Bitboard, Color, Piece};
 
-use std::ops::{Index, IndexMut, BitOr};
 use std::fmt;
 use std::num::ParseIntError;
+use std::error;
 
 #[derive(Debug)]
 pub struct ReadFenError{}
-
 impl From<ParseIntError> for ReadFenError{
-    fn from(_value: ParseIntError) -> Self {
+    fn from(_value: ParseIntError) -> Self{
         ReadFenError{}
     }
 }
+impl fmt::Display for ReadFenError{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Problem encountered while reading FEN")
+    }
+}
+impl error::Error for ReadFenError{}
 
 type Result<T> = std::result::Result<T, ReadFenError>;
 
-#[repr(usize)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Color{
-    White = 0,
-    Black = 8,
-}
-impl From<Color> for usize{
-    fn from(value: Color) -> Self {
-        value as usize
-    }
-}
-impl<T: Into<usize>> BitOr<T> for Color{
-    type Output = usize;
-
-    fn bitor(self, rhs: T) -> Self::Output {
-        (self as usize) | (rhs.into())
-    }
-}
-
-num_and_all!{
-#[repr(usize)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Piece{
-    Stradler = 1,
-    Coordinator = 2,
-    Springer = 3,
-    Chameleon = 4,
-    Retractor = 5,
-    Immobilizer = 6,
-    King = 7,
-}
-}
-impl Piece{
-    const PIECE_SYMBOLS: [char; 16] = ['.', 'P', 'R', 'N', 'B', 'Q', 'U', 'K', '.', 'p', 'r', 'n', 'b', 'q', 'u', 'k'];
-}
-impl From<Piece> for usize{
-    fn from(value: Piece) -> Self{
-        value as usize
-    }
-}
-impl<T: Into<usize>> BitOr<T> for Piece{
-    type Output = usize;
-
-    fn bitor(self, rhs: T) -> Self::Output {
-        (self as usize) | (rhs.into() as usize)
-    }
-}
-
-impl_indexing!(Color, Piece);
-
 pub struct Position{
-    boards: [Bitboard; 16],
+    board: [usize; 64],
+    bitboards: [Bitboard; 16],
+    zobrist_hash: u64,
     to_play: Color,
     halfmoves: u32,
     fullmoves: u32,
@@ -78,7 +34,9 @@ impl Position{
 
     fn create_empty() -> Self{
         Position{ 
-            boards: [Bitboard::EMPTY; 16],
+            board: [0; 64],
+            bitboards: [Bitboard::EMPTY; 16],
+            zobrist_hash: 0,
             to_play: Color::White, 
             halfmoves: 0,
             fullmoves: 0,
@@ -131,8 +89,10 @@ impl Position{
                 _ => return Err(ReadFenError{})
             };
 
-            result.boards[color | piece_index] |= Bitboard(1 << (rank*8 + file));
-            result.boards[color] |= Bitboard(1 << (rank*8 + file));
+            let s = (rank*8 + file) as usize;
+            result.board[s] = color | piece_index;
+            result.bitboards[color | piece_index] |= Bitboard(1 << (rank*8 + file));
+            result.bitboards[color] |= Bitboard(1 << (rank*8 + file));
 
             file += 1;
 
@@ -180,7 +140,7 @@ impl fmt::Display for Position{
 
                     if i == 0 || i == 8{continue;}
 
-                    if (self.boards[i].0 >> s) & 1 == 1{
+                    if (self.bitboards[i].0 >> s) & 1 == 1{
                         write!(f, "{}", Piece::PIECE_SYMBOLS[i])?;
                         continue 'file;
                     }
@@ -224,7 +184,7 @@ mod test{
         assert_eq!(start_position.fullmoves, 1);
 
         for i in 0..16{
-            assert_eq!(start_position.boards[i], START_POS_BITBOARDS[i]);
+            assert_eq!(start_position.bitboards[i], START_POS_BITBOARDS[i]);
         }
 
     }
@@ -232,7 +192,7 @@ mod test{
     #[test]
     fn bad_fen_test(){
 
-        let position = Position::from_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        let position: Result<_> = Position::from_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
         assert!(position.is_err());
     }

@@ -51,3 +51,17 @@ macro_rules! impl_indexing {
 }
 pub(crate) use impl_indexing;
 
+
+// source: xorshift* from stockfish (it's also the example used by wikipedia)
+pub(crate) struct PRNG{
+    // 3262394871
+    seed: u64
+}
+impl PRNG{
+    pub(crate) const fn rand64(&mut self) -> u64{
+        self.seed ^= self.seed >> 12;
+        self.seed ^= self.seed << 25;
+        self.seed ^= self.seed >> 27;
+        self.seed.wrapping_mul(2685821657736338717u64)
+    }
+}

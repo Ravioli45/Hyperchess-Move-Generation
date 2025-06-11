@@ -1,4 +1,6 @@
-use std::ops::{BitAnd, BitOr, BitXor, BitAndAssign, BitOrAssign, BitXorAssign, Not};
+use crate::utils::*;
+
+use std::ops::{BitAnd, BitOr, BitXor, BitAndAssign, BitOrAssign, BitXorAssign, Not, Index, IndexMut};
 use std::fmt;
 
 /// wrapper struct around u64 to represent
@@ -100,13 +102,84 @@ impl Bitboard{
     }
 }
 
-mod test{
+num_and_all!{
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[repr(usize)]
+pub enum Square{
+    A1, B1 ,C1 ,D1, E1, F1, G1, H1,
+    A2, B2, C2, D2, E2, F2, G2, H2,
+    A3, B3, C3, D3, E3, F3, G3, H3,
+    A4, B4, C4, D4, E4, F4, G4, H4,
+    A5, B5, C5, D5, E5, F5, G5, H5,
+    A6, B6, C6, D6, E6, F6 ,G6, H6,
+    A7, B7, C7, D7, E7, F7, G7, H7,
+    A8, B8, C8, D8, E8, F8, G8, H8
+}
+}
+impl fmt::Display for Square{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+impl_indexing!(Square);
 
-    #[allow(unused)]
+#[repr(usize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Color{
+    White = 0,
+    Black = 8,
+}
+impl From<Color> for usize{
+    fn from(value: Color) -> Self {
+        value as usize
+    }
+}
+impl<T: Into<usize>> BitOr<T> for Color{
+    type Output = usize;
+
+    fn bitor(self, rhs: T) -> Self::Output {
+        (self as usize) | (rhs.into())
+    }
+}
+
+num_and_all!{
+#[repr(usize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Piece{
+    Stradler = 1,
+    Coordinator = 2,
+    Springer = 3,
+    Chameleon = 4,
+    Retractor = 5,
+    Immobilizer = 6,
+    King = 7,
+}
+}
+impl Piece{
+    pub(crate) const PIECE_SYMBOLS: [char; 16] = ['.', 'P', 'R', 'N', 'B', 'Q', 'U', 'K', '.', 'p', 'r', 'n', 'b', 'q', 'u', 'k'];
+}
+impl From<Piece> for usize{
+    fn from(value: Piece) -> Self{
+        value as usize
+    }
+}
+impl<T: Into<usize>> BitOr<T> for Piece{
+    type Output = usize;
+
+    fn bitor(self, rhs: T) -> Self::Output {
+        (self as usize) | (rhs.into())
+    }
+}
+
+impl_indexing!(Color, Piece);
+
+
+#[cfg(test)]
+mod test{
     use super::*;
 
     #[test]
-    fn test_bsf(){
+    fn bitboard_bsf_test(){
         for i in 0..64{
             let bb = Bitboard(1 << i);
             assert!(bb.bitscanforward() == i);
@@ -114,7 +187,7 @@ mod test{
     }
 
     #[test]
-    fn test_poplsb(){
+    fn bitboard_pop_lsb_test(){
         for i in 0..64{
             for j in i+1..64{
                 let mut bb = Bitboard(1 << i | 1 << j);
@@ -124,4 +197,3 @@ mod test{
         }
     }
 }
-
