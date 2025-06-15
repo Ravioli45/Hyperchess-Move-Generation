@@ -2,6 +2,15 @@ use crate::types::{Piece, Square};
 
 use std::fmt;
 use std::mem::transmute;
+use std::ops::Index;
+use std::array::IntoIter;
+use std::slice::Iter;
+use std::iter::Take;
+
+const MAX_MOVES: usize = 256;
+
+type MoveListIntoIter = Take<IntoIter<Move, MAX_MOVES>>;
+type MoveListIter<'a> = Take<Iter<'a, Move>>;
 
 // move info in 32 bits
 // 6 bits (0x3f): from
@@ -10,7 +19,7 @@ use std::mem::transmute;
 //
 // remaining bits describe captures
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Move(pub(crate) u32);
+pub struct Move(u32);
 impl Move{
     pub(crate) fn get_from(&self) -> Square{
         //(self.0 & 0x3f) as usize
@@ -106,9 +115,74 @@ impl Move{
     }
 
 }
+impl Default for Move{
+    fn default() -> Self {
+        Move(0)
+    }
+}
 impl fmt::Display for Move{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{
         write!(f, "{}{}", self.get_from(), self.get_to())
+    }
+}
+
+#[derive(Debug)]
+pub struct MoveList{
+    moves: [Move; MAX_MOVES],
+    size: usize,
+}
+impl MoveList{
+    
+    pub fn new() -> Self{
+        MoveList{ 
+            moves: [Move::default(); MAX_MOVES], 
+            size: 0 
+        }
+    }
+
+    pub const fn len(&self) -> usize{
+        self.size
+    }
+
+    pub fn into_iter(self) -> MoveListIntoIter{
+        self.moves.into_iter().take(self.size)
+    }
+
+    pub fn iter(&self) -> MoveListIter{
+        self.moves.iter().take(self.size)
+    }
+
+    pub(crate) fn add_move(&mut self, m: Move){
+        self.moves[self.size] = m;
+        self.size += 1;
+    }
+}
+impl Index<usize> for MoveList{
+    type Output = Move;
+
+    fn index(&self, index: usize) -> &Self::Output{
+        if index < self.size{
+            self.moves.index(index)
+        }
+        else{
+            panic!("index out of bounds")
+        }
+    }
+}
+impl IntoIterator for MoveList{
+    type Item = Move;
+    type IntoIter = MoveListIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter{
+        self.into_iter()
+    }
+}
+impl<'a> IntoIterator for &'a MoveList{
+    type Item = &'a Move;
+    type IntoIter = MoveListIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
