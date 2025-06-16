@@ -12,12 +12,15 @@ const MAX_MOVES: usize = 256;
 type MoveListIntoIter = Take<IntoIter<Move, MAX_MOVES>>;
 type MoveListIter<'a> = Take<Iter<'a, Move>>;
 
-// move info in 32 bits
-// 6 bits (0x3f): from
-// 6 bits (0xFC0): to
-// 3 bits (0x7000): piece type that moved
-//
-// remaining bits describe captures
+/// move info in 32 bits
+/// 
+/// 6 bits (0x3f): from
+/// 
+/// 6 bits (0xFC0): to
+/// 
+/// 3 bits (0x7000): piece type that moved
+///
+/// remaining bits describe captures
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Move(u32);
 impl Move{

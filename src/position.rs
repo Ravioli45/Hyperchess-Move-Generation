@@ -1,4 +1,6 @@
-use crate::types::{Bitboard, Color, Piece};
+use crate::types::{Bitboard, Color, Piece, Square};
+use crate::r#move::{Move, MoveList};
+use crate::tables::get_orth_moves;
 
 use std::fmt;
 use std::num::ParseIntError;
@@ -70,6 +72,7 @@ impl Position{
 
             // make_ascii_lowercase
             //piece = piece.to_ascii_lowercase();
+
             piece.make_ascii_lowercase();
 
             let piece_index = match piece{
@@ -117,6 +120,41 @@ impl Position{
         result.fullmoves = fullmoves.parse()?;
 
         Ok(result)
+    }
+
+    /// Returns a MoveList containing all the psuedolegal moves 
+    /// from the curruent position
+    pub fn generate_moves(&self) -> MoveList{
+
+        let mut move_list = MoveList::new();
+
+        let total_board: Bitboard = self.bitboards[Color::White] | self.bitboards[Color::Black];
+
+        // straddler moves
+        let mut straddlers: Bitboard = self.bitboards[self.to_play | Piece::Stradler];
+
+        while !straddlers.is_empty(){
+
+            let from: Square = straddlers.pop_lsb_square();
+            
+            let mut move_bitboard: Bitboard = get_orth_moves(from, total_board) &! total_board;
+
+            while !move_bitboard.is_empty(){
+
+                let to: Square = move_bitboard.pop_lsb_square();
+
+                let mut m: Move = Move::default();
+                m.set_from(from);
+                m.set_to(to);
+                m.set_piece(Piece::Stradler);
+
+                move_list.add_move(m);
+
+            }
+
+        }
+
+        move_list
     }
 
 }

@@ -1,7 +1,8 @@
 use crate::utils::*;
 
-use std::ops::{BitAnd, BitOr, BitXor, BitAndAssign, BitOrAssign, BitXorAssign, Not, Index, IndexMut};
+use std::ops::{BitAnd, BitOr, BitXor, BitAndAssign, BitOrAssign, BitXorAssign, Not};
 use std::fmt;
+use std::mem::transmute;
 
 /// wrapper struct around u64 to represent
 /// bitboard
@@ -100,6 +101,14 @@ impl Bitboard{
         self.0 &= self.0-1;
         lsb
     }
+    pub const fn pop_lsb_square(&mut self) -> Square{
+        assert!(self.0 != 0);
+        let lsb = self.bitscanforward();
+        self.0 &= self.0-1;
+        unsafe{
+            transmute::<usize, Square>(lsb)
+        }
+    }
 }
 
 num_and_all!{
@@ -116,11 +125,13 @@ pub enum Square{
     A8, B8, C8, D8, E8, F8, G8, H8
 }
 }
+/*
 impl fmt::Display for Square{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
+*/
 impl_indexing!(Square);
 
 #[repr(usize)]
@@ -141,11 +152,22 @@ impl<T: Into<usize>> BitOr<T> for Color{
         (self as usize) | (rhs.into())
     }
 }
+impl Not for Color{
+    type Output = Self;
+
+    fn not(self) -> Self::Output{
+        match self{
+            Self::White => Self::Black,
+            Self::Black => Self::White,
+        }
+    }
+}
 
 num_and_all!{
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Piece{
+    Empty = 0,
     Stradler = 1,
     Coordinator = 2,
     Springer = 3,

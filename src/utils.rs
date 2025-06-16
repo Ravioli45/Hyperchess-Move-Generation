@@ -1,3 +1,5 @@
+
+// TODO: consider moving display impl to proc macro
 macro_rules! num_and_all{
     (
         $(#[$meta:meta])*
@@ -22,6 +24,16 @@ macro_rules! num_and_all{
             $vis const NUM: usize = [$(Self::$variant),*].len();
             $vis const ALL: [Self; Self::NUM] = [$(Self::$variant),*];
         }
+        impl ::std::fmt::Display for $trait{
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result{
+                let to_write: &str = match *self{
+                    $(
+                        Self::$variant => stringify!($variant)
+                    ),*
+                };
+                write!(f, "{}", to_write)
+            }
+        }
     };
 }
 pub(crate) use num_and_all;
@@ -32,18 +44,20 @@ macro_rules! impl_indexing {
         $(,)?
     ) => {
         $(
-            impl<T, const N: usize> Index<$enum_name> for [T; N]{
+            impl<T, const N: usize> ::std::ops::Index<$enum_name> for [T; N]{
                 type Output = T;
 
                 #[inline]
                 fn index(&self, index: $enum_name) -> &Self::Output{
-                    &self[index as usize]
+                    //&self[index as usize]
+                    self.index(index as usize)
                 }
             }
-            impl<T, const N: usize> IndexMut<$enum_name> for [T; N]{
+            impl<T, const N: usize> ::std::ops::IndexMut<$enum_name> for [T; N]{
                 #[inline]
                 fn index_mut(&mut self, index: $enum_name) -> &mut Self::Output{
-                    &mut self[index as usize]
+                    //&mut self[index as usize]
+                    self.index_mut(index as usize)
                 }
             }
         )*

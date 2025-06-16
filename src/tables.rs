@@ -1,5 +1,10 @@
 use crate::types::{Bitboard, Square};
 
+#[inline]
+pub fn get_orth_moves(square_index: Square, total_board: Bitboard) -> Bitboard{
+    ORTH_LOOKUPS[magic_index(total_board & ORTH_RELEVANT_BLOCKERS[square_index], ORTH_MAGICS[square_index], ORTH_THROWAWAY[square_index]) + ORTH_OFFSETS[square_index]]
+}
+
 #[inline(always)]
 pub const fn magic_index(blockers: Bitboard, magic: u64, throwaway: u8) -> usize{
     let hash = blockers.0.wrapping_mul(magic);

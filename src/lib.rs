@@ -1,10 +1,10 @@
 mod tables;
 mod position;
-mod r#move;
+pub(crate) mod r#move;
 pub(crate) mod utils;
 pub(crate) mod types;
 
 pub use position::Position;
-pub use r#move::Move;
+pub use r#move::{Move, MoveList};
 
 pub use tables::*;
