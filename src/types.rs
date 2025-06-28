@@ -4,6 +4,9 @@ use std::ops::{BitAnd, BitOr, BitXor, BitAndAssign, BitOrAssign, BitXorAssign, N
 use std::fmt;
 use std::mem::transmute;
 
+#[derive(Debug)]
+pub struct ConversionError{}
+
 /// wrapper struct around u64 to represent
 /// bitboard
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -88,11 +91,22 @@ impl Bitboard{
         *self == Self::UNUSED
     }
 
+    pub fn get_bit(&self, index: usize) -> usize{
+        ((self.0) >> index) as usize & 1
+    }
+    pub fn set_bit(&mut self, index: usize){
+        self.0 |= 1 << index;
+    }
+
     /// finds index of lsb with debruijn multiplication
     pub const fn bitscanforward(&self) -> usize{
         //assert!(!self.is_empty());
         assert!(self.0 != 0);
         Self::MAGIC_TABLE[((self.0 & self.0.wrapping_neg()).wrapping_mul(Self::MAGIC)).wrapping_shr(58) as usize]
+    }
+    pub fn bitscanforward_square(&self) -> Square{
+        //assert!(self.0 != 0);
+        Square::try_from(self.bitscanforward()).unwrap()
     }
     pub const fn pop_lsb(&mut self) -> usize{
         //assert!(!self.is_empty());
@@ -101,13 +115,9 @@ impl Bitboard{
         self.0 &= self.0-1;
         lsb
     }
-    pub const fn pop_lsb_square(&mut self) -> Square{
-        assert!(self.0 != 0);
-        let lsb = self.bitscanforward();
-        self.0 &= self.0-1;
-        unsafe{
-            transmute::<usize, Square>(lsb)
-        }
+    pub fn pop_lsb_square(&mut self) -> Square{
+        //assert!(self.0 != 0);
+        Square::try_from(self.pop_lsb()).unwrap()
     }
 }
 
@@ -132,6 +142,21 @@ impl fmt::Display for Square{
     }
 }
 */
+impl TryFrom<usize> for Square{
+    type Error = ConversionError;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        if value <= 63{
+            unsafe{
+                Ok(transmute::<usize, Square>(value))
+            }
+        }
+        else{
+            Err(Self::Error{})
+        }
+    }
+}
+
 impl_indexing!(Square);
 
 #[repr(usize)]
@@ -159,6 +184,20 @@ impl Not for Color{
         match self{
             Self::White => Self::Black,
             Self::Black => Self::White,
+        }
+    }
+}
+impl TryFrom<usize> for Color{
+    type Error = ConversionError;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error>{
+        if value == 0 || value == 8{
+            unsafe{
+                Ok(transmute::<usize, Color>(value))
+            }
+        }
+        else{
+            Err(Self::Error{})
         }
     }
 }
@@ -192,6 +231,20 @@ impl<T: Into<usize>> BitOr<T> for Piece{
         (self as usize) | (rhs.into())
     }
 }
+impl TryFrom<usize> for Piece{
+    type Error = ConversionError;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error>{
+        if value <= 7{
+            unsafe{
+                Ok(transmute::<usize, Piece>(value))
+            }
+        }
+        else{
+            Err(Self::Error{})
+        }
+    }
+}
 
 impl_indexing!(Color, Piece);
 
@@ -216,6 +269,15 @@ mod test{
                 assert!(bb.pop_lsb() == i);
                 assert!(bb.pop_lsb() == j);
             }
+        }
+    }
+
+    #[test]
+    fn bitboard_get_bit_test(){
+        let bb = Bitboard(u64::MAX);
+
+        for i in 0..64{
+            assert_eq!(bb.get_bit(i), 1);
         }
     }
 }
