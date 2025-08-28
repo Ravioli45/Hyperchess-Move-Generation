@@ -1,8 +1,43 @@
 use crate::types::{Bitboard, Square};
 
 #[inline]
-pub fn get_orth_moves(square_index: Square, total_board: Bitboard) -> Bitboard{
-    ORTH_LOOKUPS[magic_index(total_board & ORTH_RELEVANT_BLOCKERS[square_index], ORTH_MAGICS[square_index], ORTH_THROWAWAY[square_index]) + ORTH_OFFSETS[square_index]]
+pub fn get_orth_moves(square: Square, total_board: Bitboard) -> Bitboard{
+    ORTH_LOOKUPS[magic_index(total_board & ORTH_RELEVANT_BLOCKERS[square], ORTH_MAGICS[square], ORTH_THROWAWAY[square]) + ORTH_OFFSETS[square]]
+}
+
+#[inline]
+pub fn get_diag_moves(square: Square, total_board: Bitboard) -> Bitboard{
+    DIAG_LOOKUPS[magic_index(total_board & DIAG_RELEVANT_BLOCKERS[square], DIAG_MAGICS[square], DIAG_THROWAWAY[square]) + DIAG_OFFSETS[square]]
+}
+
+#[inline]
+pub fn get_potential_stradler_captures(square: Square, friendly_stradlers: Bitboard) -> [Bitboard; 4]{
+    STRADLER_LOOKUPS[magic_index(friendly_stradlers & RELEVANT_BUDDIES[square], STRADLER_MAGICS[square], STRADLER_THROWAWAY[square]) + STRADLER_OFFSETS[square]]
+}
+
+#[inline]
+pub fn get_death_squares(s1: Square, s2: Square) -> [Bitboard; 2]{
+    DEATH_SQUARE_LOOKUP[s1][s2]
+}
+
+#[inline]
+pub fn get_springer_landing_square(start: Square, capturing: Square) -> Bitboard{
+    SPRINGER_LANDING_LOOKUP[start][capturing]
+}
+
+#[inline]
+pub fn get_springer_captured_square(start: Square, landing: Square) -> Bitboard{
+    SPRINGER_CAPTURED_LOOKUP[start][landing]
+}
+
+#[inline]
+pub fn get_retractor_lookup(start: Square, moving_to: Square) -> Bitboard{
+    RETRACTOR_LOOKUP[start][moving_to]
+}
+
+#[inline]
+pub fn get_king_moves(square: Square) -> Bitboard{
+    KING_MOVE_MASK[square]
 }
 
 #[inline(always)]
@@ -291,10 +326,11 @@ pub const fn generate_diagonal_lookup(start: Square, blockers: Bitboard) -> Bitb
     result
 }
 
-pub const fn generate_stradler_captures(start: Square, buddies: Bitboard) -> Bitboard{
+pub const fn generate_stradler_captures(start: Square, buddies: Bitboard) -> [Bitboard; 4]{
 
     let start_index = start as usize;
-    let mut result: Bitboard = Bitboard::EMPTY;
+    //let mut result: Bitboard = Bitboard::EMPTY;
+    let mut result: [Bitboard; 4] = [Bitboard::EMPTY; 4];
 
     let mut i = 0;
     while i < 4{
@@ -302,7 +338,8 @@ pub const fn generate_stradler_captures(start: Square, buddies: Bitboard) -> Bit
         let to_edge = NUM_SQUARES_TO_EDGE[start_index][i];
 
         if to_edge >= 2 && ((buddies.0 >> (start_index as i8 + 2*offset))&1) == 1{
-            result.0 |= 1 << (start_index as i8 + offset);
+            //result.0 |= 1 << (start_index as i8 + offset);
+            result[i].0 |= 1 << (start_index as i8 + offset);
         }
 
         i += 1;
@@ -420,7 +457,7 @@ pub const fn generate_springer_captured(start: Square, relevant_blockers: Bitboa
     result
 }
 
-const fn get_death_squares(mut king_coord_bitboard: Bitboard) -> Bitboard{
+const fn generate_death_squares(mut king_coord_bitboard: Bitboard) -> Bitboard{
 
     let s1 = king_coord_bitboard.pop_lsb();
 
@@ -444,26 +481,6 @@ const fn get_death_squares(mut king_coord_bitboard: Bitboard) -> Bitboard{
         let death2 = (rank2*8) + file1;
         Bitboard(1 << death1 | 1 << death2)
     }
-}
-
-const fn generate_death_square_lookup() -> [[Bitboard; 64]; 64]{
-    let mut result: [[Bitboard; 64]; 64] = [[Bitboard::EMPTY; 64]; 64];
-
-    let mut i = 0;
-
-    while i < 64{
-        let mut j = 0;
-
-        while j < 64{
-
-            result[i][j] = get_death_squares(Bitboard(1 << i | 1 << j));
-
-            j += 1;
-        }
-        i += 1;
-    }
-
-    result
 }
 
 const fn generate_orthogonal_offsets() -> [usize; 64]{
@@ -496,7 +513,7 @@ const fn generate_buddy_offsets() -> [usize; 64]{
     let mut i = 0;
     while i < 64{
         result[i] = offset_count;
-        offset_count += 1 << (64-BUDDY_THROWAWAY[i]);
+        offset_count += 1 << (64-STRADLER_THROWAWAY[i]);
         i += 1;
     }
     result
@@ -615,7 +632,7 @@ pub static DIAG_THROWAWAY: [u8; 64] = {
     result
 };
 
-pub static BUDDY_THROWAWAY: [u8; 64] = {
+pub static STRADLER_THROWAWAY: [u8; 64] = {
     let mut result: [u8; 64] = [0; 64];
     let mut i = 0;
     while i < 64{
@@ -697,8 +714,8 @@ pub static DIAG_LOOKUPS: [Bitboard; 5248] = {
     result
 };
 
-pub static STRADLER_LOOKUPS: [Bitboard; 576] = {
-    let mut result: [Bitboard; 576] = [Bitboard::UNUSED; 576];
+pub static STRADLER_LOOKUPS: [[Bitboard; 4]; 576] = {
+    let mut result: [[Bitboard; 4]; 576] = [[Bitboard::UNUSED; 4]; 576];
 
     let mut i = 0;
     while i < 64{
@@ -708,10 +725,10 @@ pub static STRADLER_LOOKUPS: [Bitboard; 576] = {
         let mut blocker_subset: Bitboard = Bitboard::EMPTY;
 
         let mut j = 0;
-        while j < (1 << (64-BUDDY_THROWAWAY[i])){
+        while j < (1 << (64-STRADLER_THROWAWAY[i])){
             blocker_subset.0 = blocker_subset.0.wrapping_sub(relevant_blockers.0) & relevant_blockers.0;
 
-            let index = magic_index(blocker_subset, square_magic, BUDDY_THROWAWAY[i]);
+            let index = magic_index(blocker_subset, square_magic, STRADLER_THROWAWAY[i]);
 
             result[index + STRADLER_OFFSETS[i]] = generate_stradler_captures(Square::ALL[i], blocker_subset);
 
@@ -724,6 +741,7 @@ pub static STRADLER_LOOKUPS: [Bitboard; 576] = {
     result
 };
 
+/*
 pub static RETRACTOR_LOOKUPS: [Bitboard; 10016] = {
     let mut result: [Bitboard; 10016] = [Bitboard::UNUSED; 10016];
 
@@ -779,9 +797,33 @@ pub static RETRACTOR_CAPTURED: [Bitboard; 10016] = {
 
     result
 };
+*/
+
+static RETRACTOR_LOOKUP: [[Bitboard; 64]; 64] = {
+
+    let mut result: [[Bitboard; 64]; 64] = [[Bitboard::EMPTY; 64]; 64];
+
+    let mut i = 0;
+    while i < 64{
+
+        let mut j = 0;
+        while j < 64{
+
+            // i = retractor square
+            // j = moving to
+            result[i][j] = generate_retractor_captures(Square::ALL[i], Bitboard(1 << j));
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+};
 
 // [springer position][position of captured piece]
-pub static SPRINGER_CAPTURE_LOOKUP: [[Bitboard; 64]; 64] = {
+pub static SPRINGER_LANDING_LOOKUP: [[Bitboard; 64]; 64] = {
     let mut result: [[Bitboard; 64]; 64] = [[Bitboard::EMPTY; 64]; 64];
 
     let mut i = 0;
@@ -805,8 +847,60 @@ pub static SPRINGER_CAPTURE_LOOKUP: [[Bitboard; 64]; 64] = {
     result
 };
 
+// [springer start position][springer landing square]
+pub static SPRINGER_CAPTURED_LOOKUP: [[Bitboard; 64]; 64] = {
+    let mut result: [[Bitboard; 64]; 64] = [[Bitboard::EMPTY; 64]; 64];
 
-pub static DEATH_SQUARE_LOOKUP: [[Bitboard; 64]; 64] = generate_death_square_lookup();
+    let mut i = 0;
+    while i < 64{
+
+        let mut j = 0;
+
+        while j < 64{
+            let captured = Bitboard(1 << j);
+            let mut landing = generate_springer_captures(Square::ALL[i], captured);
+            
+            if !(landing.0 == 0){
+                result[i][landing.pop_lsb()] = captured;
+            }
+
+            j += 1;
+        }
+
+        i += 1;
+    }
+
+    result
+};
+
+pub static DEATH_SQUARE_LOOKUP: [[[Bitboard; 2]; 64]; 64] = {
+    let mut result: [[[Bitboard; 2]; 64]; 64] = [[[Bitboard::EMPTY; 2]; 64]; 64];
+
+    let mut i = 0;
+
+    while i < 64{
+        let mut j = 0;
+
+        while j < 64{
+
+            //result[i][j] = generate_death_squares(Bitboard(1 << i | 1 << j));
+            let mut death_squares: Bitboard = generate_death_squares(Bitboard(1 << i | 1 << j));
+
+            if death_squares.0 != 0{
+                
+                result[i][j][0] = Bitboard(1 << death_squares.pop_lsb());
+                result[i][j][1] = Bitboard(1 << death_squares.pop_lsb());
+
+            }
+
+
+            j += 1;
+        }
+        i += 1;
+    }
+
+    result
+};
 
 #[cfg(test)]
 mod test{
@@ -902,7 +996,7 @@ mod test{
             buddy_subset.0 = buddy_subset.0.wrapping_sub(potential_buddies.0) & potential_buddies.0;
 
             while !buddy_subset.is_empty(){
-                let index = magic_index(buddy_subset, square_magic, BUDDY_THROWAWAY[square]);
+                let index = magic_index(buddy_subset, square_magic, STRADLER_THROWAWAY[square]);
                 let magic_result = STRADLER_LOOKUPS[index + STRADLER_OFFSETS[square]];
 
                 assert_eq!(magic_result, generate_stradler_captures(square, buddy_subset));
@@ -916,11 +1010,11 @@ mod test{
     fn retractor_capture_test(){
         for square in Square::ALL{
             let square_magic = RETRACTOR_MAGICS[square];
-            let potential_captures = KING_MOVE_MASK[square];
+            let mut potential_captures = KING_MOVE_MASK[square];
+
+            /*
             let mut adj_subset = Bitboard::EMPTY;
-
             adj_subset.0 = adj_subset.0.wrapping_sub(potential_captures.0) & potential_captures.0;
-
             while !adj_subset.is_empty(){
                 let index = magic_index(adj_subset, square_magic, RETRACTOR_THROWAWAY[square]);
                 let magic_result = RETRACTOR_LOOKUPS[index + RETRACTOR_OFFSETS[square]];
@@ -931,6 +1025,17 @@ mod test{
 
                 adj_subset.0 = adj_subset.0.wrapping_sub(potential_captures.0) & potential_captures.0;
             }
+            */
+            while !potential_captures.is_empty(){
+                //println!("{potential_captures:?}");
+                let to = potential_captures.pop_lsb_square();
+
+                //println!("{square}:{to}");
+
+                assert_eq!(get_retractor_lookup(square, to), generate_retractor_captures(square, Bitboard::from(to)));
+
+            }
+
         }
     }
 
@@ -974,7 +1079,7 @@ mod test{
                 while !potential_captures.is_empty(){
 
                     let captured_bit = potential_captures.pop_lsb();
-                    let land_on = SPRINGER_CAPTURE_LOOKUP[square][captured_bit];
+                    let land_on = SPRINGER_LANDING_LOOKUP[square][captured_bit];
 
                     // if landing square is empty
                     if !(land_on & !blocker_subset).is_empty(){
@@ -1002,7 +1107,12 @@ mod test{
             for s2 in Square::ALL{
 
                 let king_coord_bb = Bitboard(1 << (s1 as u64) | 1 << (s2 as u64));
-                assert_eq!(DEATH_SQUARE_LOOKUP[s1][s2], get_death_squares(king_coord_bb));
+                let lookup = get_death_squares(s1, s2);
+
+                //println!("{:?}, {:?}", s1, s2);
+                //println!("{:?}", lookup);
+                let death_squares: Bitboard = lookup[0] | lookup[1];
+                assert_eq!(death_squares, generate_death_squares(king_coord_bb));
 
             }
         }

@@ -120,6 +120,11 @@ impl Bitboard{
         Square::try_from(self.pop_lsb()).unwrap()
     }
 }
+impl From<Square> for Bitboard{
+    fn from(value: Square) -> Self {
+        Bitboard(1 << (value as usize))
+    }
+}
 
 num_and_all!{
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
