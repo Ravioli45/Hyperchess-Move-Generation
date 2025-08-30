@@ -11,6 +11,11 @@ fn run_test_position(position: &mut Position, depth: usize, max_depth: usize){
     let moves: MoveList = position.generate_moves();
 
     for m in moves{
+
+        if !position.is_move_legal(m){
+            //println!("h");
+            continue;
+        }
         //println!("{:?}", m);
         position.make_move(m);
 

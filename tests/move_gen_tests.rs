@@ -63,12 +63,12 @@ fn run_test_suite(){
 
     let mut passed: usize = 0;
     let total_tests: usize = test_suite.len();
-    println!("Running test suite...");
+    println!("Running test suite...\n");
 
     for (i, test) in test_suite.into_iter().enumerate(){
 
          /*
-        if i < 17{
+        if i < 90{
             continue;
         }
         // */
