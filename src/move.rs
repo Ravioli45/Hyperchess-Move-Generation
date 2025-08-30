@@ -152,6 +152,84 @@ impl Move{
         self.0 |= (b as u32) << 30;
     }
 
+
+    pub(crate) fn get_chameleon_c1_bit(&self) -> bool{
+        ((self.0 & 0x8000) >> 15) != 0
+    }
+    pub(crate) fn set_chameleon_c1_bit(&mut self, b: bool){
+         self.0 |= (b as u32) << 15;
+    }
+
+    pub(crate) fn get_chameleon_c2_bit(&self) -> bool{
+        ((self.0 & 0x10000) >> 16) != 0
+    }
+    pub(crate) fn set_chameleon_c2_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 16;
+    }
+
+    pub(crate) fn get_chameleon_c3_bit(&self) -> bool{
+        ((self.0 & 0x20000) >> 17) != 0
+    }
+    pub(crate) fn set_chameleon_c3_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 17;
+    }
+
+    pub(crate) fn get_chameleon_c4_bit(&self) -> bool{
+        ((self.0 & 0x40000) >> 18) != 0
+    }
+    pub(crate) fn set_chameleon_c4_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 18;
+    }
+
+    pub(crate) fn get_chameleon_c5_bit(&self) -> bool{
+        ((self.0 & 0x80000) >> 19) != 0
+    }
+    pub(crate) fn set_chameleon_c5_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 19;
+    }
+
+    pub(crate) fn get_chameleon_c6_bit(&self) -> bool{
+        ((self.0 & 0x100000) >> 20) != 0
+    }
+    pub(crate) fn set_chameleon_c6_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 20;
+    }
+
+    pub(crate) fn get_chameleon_c7_bit(&self) -> bool{
+        ((self.0 & 0x200000) >> 21) != 0
+    }
+    pub(crate) fn set_chameleon_c7_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 21;
+    }
+
+    pub(crate) fn get_chameleon_c8_bit(&self) -> bool{
+        ((self.0 & 0x400000) >> 22) != 0
+    }
+    pub(crate) fn set_chameleon_c8_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 22;
+    }
+
+    pub(crate) fn get_chameleon_c9_bit(&self) -> bool{
+        ((self.0 & 0x800000) >> 23) != 0
+    }
+    pub(crate) fn set_chameleon_c9_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 23;
+    }
+
+    pub(crate) fn get_chameleon_c10_bit(&self) -> bool{
+        ((self.0 & 0x1000000) >> 24) != 0
+    }
+    pub(crate) fn set_chameleon_c10_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 24;
+    }
+
+    pub(crate) fn get_chameleon_c11_bit(&self) -> bool{
+        ((self.0 & 0x2000000) >> 25) != 0
+    }
+    pub(crate) fn set_chameleon_c11_bit(&mut self, b: bool){
+        self.0 |= (b as u32) << 25;
+    }
+
 }
 impl fmt::Display for Move{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{

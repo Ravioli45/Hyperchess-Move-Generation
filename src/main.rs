@@ -8,8 +8,6 @@ fn main() -> io::Result<()>{
     println!("Positions");
 
     let mut position = Position::from_start_position();
-    //let mut position = Position::from_FEN("8/1ppp3k/2K5/8/8/8/7R/8 b 0 1").unwrap();
-    //println!("{}", position);
 
     let mut in_buffer = String::new();
     let mut previous_moves: Vec<Move> = Vec::new();

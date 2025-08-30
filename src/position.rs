@@ -358,25 +358,100 @@ impl Position{
             // potential king and retractor captures
             let king_mask: Bitboard = get_king_moves(from);
 
-            move_bitboard &= !total_board;
+            // total ^ (self.bitboards[not_to_play | Piece::King] & king_mask)
+            move_bitboard &= !(total_board &! (self.bitboards[not_to_play | Piece::King] & king_mask));
 
             while !move_bitboard.is_empty(){
                 let to: Square = move_bitboard.pop_lsb_square();
                 let bitboard_to = Bitboard::from(to);
+                let mut m: Move = Move::EMPTY;
+
+                m.set_from(from);
+                m.set_piece(Piece::Chameleon);
+                m.set_to(to);
 
                 // potential stradler
                 if bitboard_to & orth_moves != Bitboard::EMPTY{
+                    let maybe_stradler_captures: [Bitboard; 4] =
+                        get_potential_stradler_captures(to, self.bitboards[self.to_play | Piece::Stradler] | self.bitboards[self.to_play | Piece::Chameleon]);
 
+                        // up
+                        if !(maybe_stradler_captures[0] & self.bitboards[not_to_play | Piece::Stradler]).is_empty(){
+                            m.set_chameleon_c1_bit(true);
+                        }
+                        // right
+                        if !(maybe_stradler_captures[1] & self.bitboards[not_to_play | Piece::Stradler]).is_empty(){
+                            m.set_chameleon_c2_bit(true);
+                        }
+                        // down
+                        if !(maybe_stradler_captures[2] & self.bitboards[not_to_play | Piece::Stradler]).is_empty(){
+                            m.set_chameleon_c3_bit(true);
+                        }
+                        // left
+                        if !(maybe_stradler_captures[3] & self.bitboards[not_to_play | Piece::Stradler]).is_empty(){
+                            m.set_chameleon_c4_bit(true);
+                        }
+                        
                 }
 
                 // potential king and retractor
                 if bitboard_to & king_mask != Bitboard::EMPTY{
+                    // retractor
+                    let maybe_retractor_capture = get_retractor_lookup(from, to);
 
+                    if !(maybe_retractor_capture & self.bitboards[not_to_play | Piece::Retractor]).is_empty(){
+                        m.set_chameleon_c10_bit(true);
+                    }
+
+                    // king
+
+                    // by displacement
+                    if !(bitboard_to & self.bitboards[not_to_play | Piece::King]).is_empty(){
+                        m.set_chameleon_c7_bit(true);
+                    }
+
+                    let cham_king_coord_death: [Bitboard; 2] = if self.bitboards[self.to_play | Piece::Coordinator].is_empty(){
+                        [Bitboard::EMPTY; 2]
+                    }
+                    else{
+                        get_death_squares(to, self.bitboards[self.to_play | Piece::Coordinator].bitscanforward_square())
+                    };
+
+                    if !(cham_king_coord_death[0] & self.bitboards[not_to_play | Piece::King]).is_empty(){
+                        m.set_chameleon_c8_bit(true);
+                    }
+                    if !(cham_king_coord_death[1] & self.bitboards[not_to_play | Piece::King]).is_empty(){
+                        m.set_chameleon_c9_bit(true);
+                    }
                 }
 
                 // everything else (so just the coordinator i guess???)
+                let cham_coord_king_death: [Bitboard; 2] = get_death_squares(to, king_square);
 
+                if !(cham_coord_king_death[0] & self.bitboards[not_to_play | Piece::Coordinator]).is_empty(){
+                    m.set_chameleon_c5_bit(true);
+                }
+                if !(cham_coord_king_death[1] & self.bitboards[not_to_play | Piece::Coordinator]).is_empty(){
+                    m.set_chameleon_c6_bit(true);
+                }
+
+                move_list.add_move(m);
+            }
+
+            while !maybe_springer_captures.is_empty(){
+                let capturing: Square = maybe_springer_captures.pop_lsb_square();
+                let landing = get_springer_landing_square(from, capturing);
                 
+                if !(landing &! total_board).is_empty(){
+                    let mut m = Move::EMPTY;
+
+                    m.set_from(from);
+                    m.set_to(landing.bitscanforward_square());
+                    m.set_piece(Piece::Chameleon);
+                    m.set_chameleon_c11_bit(true);
+
+                    move_list.add_move(m);
+                }
             }
 
         }
@@ -530,7 +605,10 @@ impl Position{
                 m.set_piece(Piece::King);
                 
                 // capture by displacement
-                m.set_c1_piece(self.board[to]);
+                //m.set_c1_piece(self.board[to]);
+                if !(Bitboard::from(to) & self.bitboards[not_to_play]).is_empty(){
+                    m.set_c1_piece(self.board[to]);
+                }
 
                 move_list.add_move(m);
 
@@ -645,6 +723,61 @@ impl Position{
             },
             Piece::Chameleon => {
                 
+                // stradler
+                let maybe_stradler_captures: [Bitboard; 4] = 
+                    get_potential_stradler_captures(to, self.bitboards[self.to_play | Piece::Stradler] | self.bitboards[self.to_play | Piece::Chameleon]);
+                if m.get_chameleon_c1_bit(){
+                    self.remove_piece(not_to_play, Piece::Stradler, maybe_stradler_captures[0].bitscanforward_square());
+                }
+                if m.get_chameleon_c2_bit(){
+                    self.remove_piece(not_to_play, Piece::Stradler, maybe_stradler_captures[1].bitscanforward_square());
+                }
+                if m.get_chameleon_c3_bit(){
+                    self.remove_piece(not_to_play, Piece::Stradler, maybe_stradler_captures[2].bitscanforward_square());
+                }
+                if m.get_chameleon_c4_bit(){
+                    self.remove_piece(not_to_play, Piece::Stradler, maybe_stradler_captures[3].bitscanforward_square());
+                }
+
+                // chameleon
+                let cham_coord_king_death: [Bitboard; 2] = get_death_squares(to, king_square);
+                if m.get_chameleon_c5_bit(){
+                    self.remove_piece(not_to_play, Piece::Coordinator, cham_coord_king_death[0].bitscanforward_square());
+                }
+                if m.get_chameleon_c6_bit(){
+                    self.remove_piece(not_to_play, Piece::Coordinator, cham_coord_king_death[1].bitscanforward_square());
+                }
+
+                // king
+                if m.get_chameleon_c7_bit(){
+                    self.remove_piece(not_to_play, Piece::King, to);
+                }
+
+                let cham_king_coord_death: [Bitboard; 2] = if self.bitboards[self.to_play | Piece::Coordinator].is_empty(){
+                    [Bitboard::EMPTY; 2]
+                }
+                else{
+                    get_death_squares(to, self.bitboards[self.to_play | Piece::Coordinator].bitscanforward_square())
+                };
+
+                if m.get_chameleon_c8_bit(){
+                    self.remove_piece(not_to_play, Piece::King, cham_king_coord_death[0].bitscanforward_square());
+                }
+                if m.get_chameleon_c9_bit(){
+                    self.remove_piece(not_to_play, Piece::King, cham_king_coord_death[1].bitscanforward_square());
+                }
+
+                // retractor
+                if m.get_chameleon_c10_bit(){
+                    let captured_on = get_retractor_lookup(from, to);
+                    self.remove_piece(not_to_play, Piece::Retractor, captured_on.bitscanforward_square());
+                }
+
+                // springer
+                if m.get_chameleon_c11_bit(){
+                    let captured_on = get_springer_captured_square(from, to);
+                    self.remove_piece(not_to_play, Piece::Springer, captured_on.bitscanforward_square());
+                }
             },
             Piece::Retractor => {
                 if m.get_c1_piece() != Piece::Empty{
@@ -826,8 +959,6 @@ impl Position{
                 }
             },
             Piece::Springer => {
-                
-                
                 if m.get_c1_piece() != Piece::Empty{
                     let captured_on = get_springer_captured_square(from, to);
                     self.place_piece(not_to_play, m.get_c1_piece(), captured_on.bitscanforward_square());
@@ -835,7 +966,63 @@ impl Position{
 
             },
             Piece::Chameleon => {
-                
+                /* */
+
+                // stradler
+                let maybe_stradler_captures: [Bitboard; 4] = 
+                    get_potential_stradler_captures(to, self.bitboards[self.to_play | Piece::Stradler] | self.bitboards[self.to_play | Piece::Chameleon]);
+                if m.get_chameleon_c1_bit(){
+                    self.place_piece(not_to_play, Piece::Stradler, maybe_stradler_captures[0].bitscanforward_square());
+                }
+                if m.get_chameleon_c2_bit(){
+                    self.place_piece(not_to_play, Piece::Stradler, maybe_stradler_captures[1].bitscanforward_square());
+                }
+                if m.get_chameleon_c3_bit(){
+                    self.place_piece(not_to_play, Piece::Stradler, maybe_stradler_captures[2].bitscanforward_square());
+                }
+                if m.get_chameleon_c4_bit(){
+                    self.place_piece(not_to_play, Piece::Stradler, maybe_stradler_captures[3].bitscanforward_square());
+                }
+
+                // chameleon
+                let cham_coord_king_death: [Bitboard; 2] = get_death_squares(to, king_square);
+                if m.get_chameleon_c5_bit(){
+                    self.place_piece(not_to_play, Piece::Coordinator, cham_coord_king_death[0].bitscanforward_square());
+                }
+                if m.get_chameleon_c6_bit(){
+                    self.place_piece(not_to_play, Piece::Coordinator, cham_coord_king_death[1].bitscanforward_square());
+                }
+
+                // king
+                if m.get_chameleon_c7_bit(){
+                    self.place_piece(not_to_play, Piece::King, to);
+                }
+
+                let cham_king_coord_death: [Bitboard; 2] = if self.bitboards[self.to_play | Piece::Coordinator].is_empty(){
+                    [Bitboard::EMPTY; 2]
+                }
+                else{
+                    get_death_squares(to, self.bitboards[self.to_play | Piece::Coordinator].bitscanforward_square())
+                };
+
+                if m.get_chameleon_c8_bit(){
+                    self.place_piece(not_to_play, Piece::King, cham_king_coord_death[0].bitscanforward_square());
+                }
+                if m.get_chameleon_c9_bit(){
+                    self.place_piece(not_to_play, Piece::King, cham_king_coord_death[1].bitscanforward_square());
+                }
+
+                // retractor
+                if m.get_chameleon_c10_bit(){
+                    let captured_on = get_retractor_lookup(from, to);
+                    self.place_piece(not_to_play, Piece::Retractor, captured_on.bitscanforward_square());
+                }
+
+                // springer
+                if m.get_chameleon_c11_bit(){
+                    let captured_on = get_springer_captured_square(from, to);
+                    self.place_piece(not_to_play, Piece::Springer, captured_on.bitscanforward_square());
+                }
             },
             Piece::Retractor => {
                 if m.get_c1_piece() != Piece::Empty{
