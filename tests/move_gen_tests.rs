@@ -1,3 +1,4 @@
+use core::panic;
 use std::{fs::File, io::Read};
 use hmg::{Position, MoveList};
 use serde::{Serialize, Deserialize};
@@ -37,6 +38,7 @@ fn run_test_position(position: &mut Position, depth: usize, max_depth: usize, mo
         //println!("{m:?}");
 
         if !position.is_move_legal(m){
+            //println!("h");
             continue;
         }
         //println!("h");
@@ -65,6 +67,12 @@ fn run_test_suite(){
 
     for (i, test) in test_suite.into_iter().enumerate(){
 
+         /*
+        if i < 28{
+            continue;
+        }
+        // */
+
         println!("Running test {}/{}: {}", i+1, total_tests, test.fen);
 
         let mut move_counter: Vec<usize> = vec![0; test.depth+1];
@@ -85,7 +93,15 @@ fn run_test_suite(){
         else{
             println!("Failed");
         }
-    }
 
-    assert_eq!(total_tests, passed, "{} tests failed", total_tests-passed);
+        //break;
+        println!()
+    }
+    println!();
+
+    println!("{passed}/{total_tests} test cases passed");
+
+    if passed < total_tests{
+        panic!();
+    }
 }

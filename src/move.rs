@@ -25,6 +25,8 @@ type MoveListIter<'a> = Take<Iter<'a, Move>>;
 pub struct Move(u32);
 impl Move{
 
+    pub(crate) const EMPTY: Move = Move(0);
+
     pub fn is_capture(&self) -> bool{
         ((self.0 & 0x7FFF8000) >> 15) != 0
     }
@@ -151,11 +153,6 @@ impl Move{
     }
 
 }
-impl Default for Move{
-    fn default() -> Self {
-        Move(0)
-    }
-}
 impl fmt::Display for Move{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{
         write!(f, "{}{}", self.get_from(), self.get_to())
@@ -176,7 +173,7 @@ impl MoveList{
     
     pub fn new() -> Self{
         MoveList{ 
-            moves: [Move::default(); MAX_MOVES], 
+            moves: [Move(0); MAX_MOVES], 
             size: 0 
         }
     }
